@@ -1,0 +1,44 @@
+name: dataguard-sync
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # daily at 06:00 UTC — adjust as needed
+  workflow_dispatch:        # manual trigger: gh workflow run dataguard-sync.yml
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300    # hard ceiling per infrastructure.md risk register
+
+    strategy:
+      fail-fast: false       # run all tables even if one fails
+      matrix:
+        table:
+          - orders           # REPLACE with real table names
+          # - customers
+
+    env:
+      SOURCE_DB:    ${{ secrets.SOURCE_DB }}
+      TARGET_DB:    ${{ secrets.TARGET_DB }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+      NO_COLOR:     "1"      # AGENTS.md hard rule: CI output must be machine-readable
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv + Python 3.12
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dataguard (pinned tag)
+        run: uv tool install git+https://github.com/${{ github.repository }}@v0.1.0
+
+      - name: Sync — ${{ matrix.table }}
+        run: dataguard sync --table ${{ matrix.table }} --rules rules/${{ matrix.table }}.json
+
+      - name: Report failure
+        if: failure()
+        run: echo "::error title=dataguard-sync failed::Table ${{ matrix.table }} — run ${{ github.run_id }}"
