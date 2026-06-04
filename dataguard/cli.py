@@ -10,8 +10,13 @@ from dataguard.env_check import env_check
 from dataguard.models import Outcome
 from dataguard.sync import run_sync
 
-app = typer.Typer()
+app = typer.Typer(no_args_is_help=True)
 console = Console(no_color=bool(os.environ.get("NO_COLOR")))
+
+
+@app.callback()
+def _root() -> None:
+    """DataGuard — validate and sync records between databases."""
 
 
 @app.command()

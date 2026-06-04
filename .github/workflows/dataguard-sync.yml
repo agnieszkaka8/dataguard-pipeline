@@ -34,7 +34,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dataguard (pinned tag)
-        run: uv tool install git+https://github.com/${{ github.repository }}@v0.1.0
+        run: uv tool install git+https://github.com/${{ github.repository }}@v0.1.1
 
       - name: Sync — ${{ matrix.table }}
         run: dataguard sync --table ${{ matrix.table }} --rules rules/${{ matrix.table }}.json
