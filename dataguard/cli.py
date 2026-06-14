@@ -27,6 +27,11 @@ def sync(
     since: Optional[str] = typer.Option(
         None, "--since", help="Override watermark (ISO timestamp)"
     ),
+    timestamp_col: str = typer.Option(
+        "created_at",
+        "--timestamp-col",
+        help="Timestamp column used for incremental extraction",
+    ),
 ) -> None:
     """Sync records from Source DB to Target DB with validation."""
     env_check()
@@ -36,7 +41,13 @@ def sync(
         raise typer.Exit(code=1)
 
     try:
-        results = run_sync(table=table, rules_path=rules, dry_run=dry_run, since=since)
+        results = run_sync(
+            table=table,
+            rules_path=rules,
+            dry_run=dry_run,
+            since=since,
+            timestamp_col=timestamp_col,
+        )
     except Exception as exc:
         console.print(f"[red]Sync failed:[/red] {type(exc).__name__}")
         raise typer.Exit(code=1)

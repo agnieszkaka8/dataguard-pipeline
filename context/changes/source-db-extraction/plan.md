@@ -251,21 +251,21 @@ Pass `-m "not integration"` in CI or as the default; integration tests run via `
 
 #### Automated
 
-- [x] 1.1 Type check passes: `uv run mypy dataguard/watermark.py`
-- [x] 1.2 Lint passes: `uv run ruff check dataguard/watermark.py`
+- [x] 1.1 Type check passes: `uv run mypy dataguard/watermark.py` — 0190a0e
+- [x] 1.2 Lint passes: `uv run ruff check dataguard/watermark.py` — 0190a0e
 
 ### Phase 2: Connection, extraction, and CLI wiring
 
 #### Automated
 
-- [ ] 2.1 Full type check: `uv run mypy dataguard/`
-- [ ] 2.2 Full lint: `uv run ruff check .`
+- [x] 2.1 Full type check: `uv run mypy dataguard/`
+- [x] 2.2 Full lint: `uv run ruff check .`
 
 #### Manual
 
 - [ ] 2.3 Dry-run with valid SOURCE_DB: connects, extracts, prints summary — no traceback
 - [ ] 2.4 First run (no .watermark): first-run warning visible before extraction
-- [ ] 2.5 Unreachable SOURCE_DB: "Sync failed: RuntimeError", exit non-zero, no credentials in output
+- [x] 2.5 Unreachable SOURCE_DB: "Sync failed: RuntimeError", exit non-zero, no credentials in output
 
 ### Phase 3: Tests
 
