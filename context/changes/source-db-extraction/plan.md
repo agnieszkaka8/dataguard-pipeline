@@ -258,19 +258,19 @@ Pass `-m "not integration"` in CI or as the default; integration tests run via `
 
 #### Automated
 
-- [x] 2.1 Full type check: `uv run mypy dataguard/`
-- [x] 2.2 Full lint: `uv run ruff check .`
+- [x] 2.1 Full type check: `uv run mypy dataguard/` — 876f7ee
+- [x] 2.2 Full lint: `uv run ruff check .` — 876f7ee
 
 #### Manual
 
 - [ ] 2.3 Dry-run with valid SOURCE_DB: connects, extracts, prints summary — no traceback
 - [ ] 2.4 First run (no .watermark): first-run warning visible before extraction
-- [x] 2.5 Unreachable SOURCE_DB: "Sync failed: RuntimeError", exit non-zero, no credentials in output
+- [x] 2.5 Unreachable SOURCE_DB: "Sync failed: RuntimeError", exit non-zero, no credentials in output — 876f7ee
 
 ### Phase 3: Tests
 
 #### Automated
 
-- [ ] 3.1 All unit tests pass: `uv run pytest tests/ -v -m "not integration"`
-- [ ] 3.2 Type check: `uv run mypy dataguard/`
-- [ ] 3.3 Lint + format check: `uv run ruff check . && uv run ruff format --check .`
+- [x] 3.1 All unit tests pass: `uv run pytest tests/ -v -m "not integration"`
+- [x] 3.2 Type check: `uv run mypy dataguard/`
+- [x] 3.3 Lint + format check: `uv run ruff check . && uv run ruff format --check .`
