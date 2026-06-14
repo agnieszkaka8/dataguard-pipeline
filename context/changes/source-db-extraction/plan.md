@@ -271,6 +271,6 @@ Pass `-m "not integration"` in CI or as the default; integration tests run via `
 
 #### Automated
 
-- [x] 3.1 All unit tests pass: `uv run pytest tests/ -v -m "not integration"`
-- [x] 3.2 Type check: `uv run mypy dataguard/`
-- [x] 3.3 Lint + format check: `uv run ruff check . && uv run ruff format --check .`
+- [x] 3.1 All unit tests pass: `uv run pytest tests/ -v -m "not integration"` — a100b02
+- [x] 3.2 Type check: `uv run mypy dataguard/` — a100b02
+- [x] 3.3 Lint + format check: `uv run ruff check . && uv run ruff format --check .` — a100b02
