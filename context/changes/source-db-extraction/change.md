@@ -1,9 +1,9 @@
 ---
 change_id: source-db-extraction
 title: Implement Source DB connection and incremental record extraction (S-01)
-status: implemented
+status: impl_reviewed
 created: 2026-06-05
-updated: 2026-06-14
+updated: 2026-07-11
 archived_at: null
 ---
 

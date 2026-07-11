@@ -1,7 +1,9 @@
 from datetime import datetime, timezone
+from io import StringIO
 from pathlib import Path
 
 import pytest
+from rich.console import Console as RichConsole
 
 from dataguard.watermark import read_watermark, write_watermark
 
@@ -10,8 +12,13 @@ def test_read_watermark_missing_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr("dataguard.watermark._WATERMARK_PATH", tmp_path / ".watermark")
+    buf = StringIO()
+    monkeypatch.setattr(
+        "dataguard.watermark.console", RichConsole(file=buf, no_color=True)
+    )
     result = read_watermark(None)
     assert result is None
+    assert "No .watermark found" in buf.getvalue()
 
 
 def test_read_watermark_valid_file(

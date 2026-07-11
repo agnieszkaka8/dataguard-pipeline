@@ -1,5 +1,8 @@
+import json
+import os
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import psycopg2
 import psycopg2.errors
@@ -10,7 +13,7 @@ from rich.console import Console
 from dataguard.models import Outcome, RecordResult
 from dataguard.watermark import read_watermark
 
-console = Console()
+console = Console(no_color=bool(os.environ.get("NO_COLOR")))
 
 
 def run_sync(
@@ -25,41 +28,46 @@ def run_sync(
     Write order (hard rule): Supabase rejections are written BEFORE
     any valid records are committed to Target DB.
     """
-    console.print("[bold]Connecting[/bold] to Source DB…")
-    _source_conn = _connect_source()
+    _source_conn: psycopg2.extensions.connection | None = None
+    try:
+        console.print("[bold]Connecting[/bold] to Source DB…")
+        _source_conn = _connect_source()
 
-    since_dt = read_watermark(since)
+        since_dt = read_watermark(since)
 
-    console.print(f"[bold]Extracting[/bold] records from [cyan]{table}[/cyan]…")
-    records = _extract(table, since_dt, timestamp_col, _source_conn)
-    console.print(f"  {len(records)} record(s) fetched")
+        console.print(f"[bold]Extracting[/bold] records from [cyan]{table}[/cyan]…")
+        records = _extract(table, since_dt, timestamp_col, _source_conn)
+        console.print(f"  {len(records)} record(s) fetched")
 
-    rules = _load_rules(rules_path)
+        rules = _load_rules(rules_path)
 
-    console.print("[bold]Validating[/bold] records…")
-    results = [_classify(row, rules) for row in records]
+        console.print("[bold]Validating[/bold] records…")
+        results = [_classify(row, rules) for row in records]
 
-    invalid = [r for r in results if r.outcome != Outcome.VALID]
-    valid = [r for r in results if r.outcome == Outcome.VALID]
+        invalid = [r for r in results if r.outcome != Outcome.VALID]
+        valid = [r for r in results if r.outcome == Outcome.VALID]
 
-    if not dry_run:
-        _target_conn = _connect_target()
+        if not dry_run:
+            if invalid:
+                console.print(
+                    f"[bold]Logging[/bold] {len(invalid)} rejection(s) to Supabase…"
+                )
+                _write_rejections_to_supabase(invalid)
 
-        if invalid:
-            console.print(
-                f"[bold]Logging[/bold] {len(invalid)} rejection(s) to Supabase…"
-            )
-            _write_rejections_to_supabase(invalid)
+            _target_conn = _connect_target()
 
-        if valid:
-            console.print(
-                f"[bold]Writing[/bold] {len(valid)} valid record(s) to Target DB…"
-            )
-            _commit_valid(valid, table, _target_conn)
-    else:
-        console.print("[yellow]Dry-run mode — no writes performed[/yellow]")
+            if valid:
+                console.print(
+                    f"[bold]Writing[/bold] {len(valid)} valid record(s) to Target DB…"
+                )
+                _commit_valid(valid, table, _target_conn)
+        else:
+            console.print("[yellow]Dry-run mode — no writes performed[/yellow]")
 
-    return results
+        return results
+    finally:
+        if _source_conn is not None:
+            _source_conn.close()
 
 
 # ---------------------------------------------------------------------------
@@ -68,8 +76,6 @@ def run_sync(
 
 
 def _connect_source() -> psycopg2.extensions.connection:
-    import os
-
     try:
         return psycopg2.connect(os.environ["SOURCE_DB"])
     except psycopg2.OperationalError as exc:
@@ -85,7 +91,7 @@ def _extract(
     since_dt: datetime | None,
     timestamp_col: str,
     conn: psycopg2.extensions.connection,
-) -> list[dict]:  # type: ignore[type-arg]
+) -> list[dict[str, Any]]:
     with conn.cursor() as cur:
         try:
             if since_dt is None:
@@ -107,13 +113,14 @@ def _extract(
         return [dict(zip(cols, row)) for row in cur.fetchall()]
 
 
-def _load_rules(path: Path) -> dict:  # type: ignore[type-arg]
-    import json
+def _load_rules(path: Path) -> dict[str, Any]:
+    try:
+        return json.loads(path.read_text())
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("Rules file is not valid JSON") from exc
 
-    return json.loads(path.read_text())
 
-
-def _classify(row: dict, rules: dict) -> RecordResult:  # type: ignore[type-arg]
+def _classify(row: dict[str, Any], rules: dict[str, Any]) -> RecordResult:
     return RecordResult(row_id=row.get("id"), outcome=Outcome.VALID)
 
 

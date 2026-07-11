@@ -1,9 +1,10 @@
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
 from rich.console import Console
 
-console = Console()
+console = Console(no_color=bool(os.environ.get("NO_COLOR")))
 
 _WATERMARK_PATH = Path(".watermark")
 
