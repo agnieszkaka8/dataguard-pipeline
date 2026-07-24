@@ -6,7 +6,8 @@ import psycopg2
 import psycopg2.errors
 import pytest
 
-from dataguard.sync import _connect_source, _extract, _load_rules
+from dataguard.models import Outcome, RecordResult
+from dataguard.sync import _classify, _connect_source, _extract, _load_rules
 
 
 # ---------------------------------------------------------------------------
@@ -125,6 +126,63 @@ def test_load_rules_malformed_schema_missing_rules_key(tmp_path: Path) -> None:
     rules_path.write_text("{}")
     with pytest.raises(RuntimeError, match="must be an object with a 'rules' list"):
         _load_rules(rules_path)
+
+
+def test_load_rules_real_orders_json_is_valid() -> None:
+    rules_path = Path(__file__).parent.parent / "rules" / "orders.json"
+    result = _load_rules(rules_path)
+    assert isinstance(result, list)
+    assert len(result) > 0
+    assert {r["field"] for r in result} == {"id", "customer_email", "amount", "status"}
+
+
+# ---------------------------------------------------------------------------
+# _classify
+# ---------------------------------------------------------------------------
+
+
+def test_classify_valid_record_returns_valid_with_no_reason() -> None:
+    rules = [
+        {"field": "age", "check": "required"},
+        {"field": "age", "check": "type", "value": "int"},
+        {"field": "age", "check": "gte", "value": 0},
+    ]
+    row = {"id": 42, "age": 30}
+    result = _classify(row, rules)
+    assert result == RecordResult(row_id=42, outcome=Outcome.VALID, reason=None)
+
+
+def test_classify_invalid_record_returns_invalid_with_reason() -> None:
+    rules = [{"field": "age", "check": "required"}]
+    row = {"id": 7}
+    result = _classify(row, rules)
+    assert result == RecordResult(
+        row_id=7, outcome=Outcome.INVALID, reason="age: is required"
+    )
+
+
+def test_classify_errored_record_returns_errored_with_reason() -> None:
+    rules = [{"field": "email", "check": "regex", "value": r"^[^@]+@[^@]+$"}]
+    row = {"id": 9, "email": [1, 2, 3]}
+    result = _classify(row, rules)
+    assert result == RecordResult(
+        row_id=9,
+        outcome=Outcome.ERRORED,
+        reason="email: cannot apply regex to list",
+    )
+
+
+def test_classify_row_id_taken_regardless_of_outcome() -> None:
+    rules = [{"field": "age", "check": "required"}]
+    assert _classify({"id": "abc"}, rules).row_id == "abc"
+    assert _classify({"id": "abc", "age": 1}, rules).row_id == "abc"
+
+
+def test_classify_row_id_none_when_id_missing() -> None:
+    rules: list[dict] = []
+    result = _classify({"age": 1}, rules)
+    assert result.row_id is None
+    assert result.outcome == Outcome.VALID
 
 
 # ---------------------------------------------------------------------------

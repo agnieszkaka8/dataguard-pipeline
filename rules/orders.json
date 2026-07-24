@@ -1,1 +1,14 @@
-{}
+{
+  "rules": [
+    { "field": "id", "check": "required" },
+    { "field": "id", "check": "type", "value": "int" },
+    { "field": "customer_email", "check": "required" },
+    { "field": "customer_email", "check": "type", "value": "str" },
+    { "field": "customer_email", "check": "regex", "value": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" },
+    { "field": "amount", "check": "required" },
+    { "field": "amount", "check": "type", "value": "number" },
+    { "field": "amount", "check": "gte", "value": 0 },
+    { "field": "status", "check": "required" },
+    { "field": "status", "check": "type", "value": "str" }
+  ]
+}

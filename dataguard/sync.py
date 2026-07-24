@@ -11,7 +11,7 @@ from psycopg2 import sql
 from rich.console import Console
 
 from dataguard.models import Outcome, RecordResult
-from dataguard.rules import validate_rules_schema
+from dataguard.rules import evaluate, validate_rules_schema
 from dataguard.watermark import read_watermark
 
 console = Console(no_color=bool(os.environ.get("NO_COLOR")))
@@ -123,7 +123,12 @@ def _load_rules(path: Path) -> list[dict[str, Any]]:
 
 
 def _classify(row: dict[str, Any], rules: list[dict[str, Any]]) -> RecordResult:
-    return RecordResult(row_id=row.get("id"), outcome=Outcome.VALID)
+    row_id = row.get("id")
+    result = evaluate(row, rules)
+    if result is None:
+        return RecordResult(row_id=row_id, outcome=Outcome.VALID)
+    outcome, reason = result
+    return RecordResult(row_id=row_id, outcome=outcome, reason=reason)
 
 
 def _write_rejections_to_supabase(results: list[RecordResult]) -> None:
