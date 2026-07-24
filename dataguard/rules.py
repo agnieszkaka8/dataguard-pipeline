@@ -1,6 +1,7 @@
 import operator
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
+from difflib import get_close_matches
 from typing import Any
 
 from dataguard.models import Outcome
@@ -96,3 +97,56 @@ def evaluate(row: dict[str, Any], rules: list[dict[str, Any]]) -> RuleResult:
         if result is not None:
             return result
     return None
+
+
+def _suggest(value: Any, candidates: Iterable[str]) -> str:
+    if not isinstance(value, str):
+        return ""
+    matches = get_close_matches(value, candidates, n=1)
+    return f" (did you mean '{matches[0]}'?)" if matches else ""
+
+
+def validate_rules_schema(rules_data: dict[str, Any]) -> list[dict[str, Any]]:
+    """Validate rules file structure and return the rules list, or raise RuntimeError."""
+    if not isinstance(rules_data, dict) or not isinstance(
+        rules_data.get("rules"), list
+    ):
+        raise RuntimeError(
+            "Rules file is invalid — top-level JSON must be an object with a 'rules' list"
+        )
+
+    rules: list[dict[str, Any]] = rules_data["rules"]
+    for index, rule in enumerate(rules, start=1):
+        if not isinstance(rule, dict):
+            raise RuntimeError(
+                f"Rules file is invalid — rule #{index} must be an object"
+            )
+
+        if "field" not in rule:
+            raise RuntimeError(f"Rules file is invalid — rule #{index} missing 'field'")
+        if not isinstance(rule["field"], str):
+            raise RuntimeError(
+                f"Rules file is invalid — rule #{index} 'field' must be a string"
+            )
+
+        if "check" not in rule:
+            raise RuntimeError(f"Rules file is invalid — rule #{index} missing 'check'")
+        check = rule["check"]
+        if check not in _CHECKS:
+            raise RuntimeError(
+                f"Rules file is invalid — rule #{index} has unknown check "
+                f"'{check}'{_suggest(check, _CHECKS.keys())}"
+            )
+
+        if check != "required" and "value" not in rule:
+            raise RuntimeError(
+                f"Rules file is invalid — rule #{index} ('{check}') missing 'value'"
+            )
+
+        if check == "type" and rule["value"] not in _TYPE_NAMES:
+            raise RuntimeError(
+                f"Rules file is invalid — rule #{index} has unknown type "
+                f"'{rule['value']}'{_suggest(rule['value'], _TYPE_NAMES.keys())}"
+            )
+
+    return rules

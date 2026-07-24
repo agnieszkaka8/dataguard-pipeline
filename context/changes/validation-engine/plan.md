@@ -267,27 +267,27 @@ Not applicable — `rules/orders.json` was an unused empty placeholder; no exist
 
 #### Automated
 
-- [x] 1.1 All new tests pass: `uv run pytest tests/test_validation.py -v`
-- [x] 1.2 Type checking passes: `uv run mypy dataguard/rules.py`
-- [x] 1.3 Linting passes: `uv run ruff check dataguard/rules.py tests/test_validation.py`
-- [x] 1.4 Full existing suite still passes: `uv run pytest`
+- [x] 1.1 All new tests pass: `uv run pytest tests/test_validation.py -v` — 32aadac
+- [x] 1.2 Type checking passes: `uv run mypy dataguard/rules.py` — 32aadac
+- [x] 1.3 Linting passes: `uv run ruff check dataguard/rules.py tests/test_validation.py` — 32aadac
+- [x] 1.4 Full existing suite still passes: `uv run pytest` — 32aadac
 
 #### Manual
 
-- [x] 1.5 Spot-check `evaluate()` calls in a REPL against hand-built rows and rules
+- [x] 1.5 Spot-check `evaluate()` calls in a REPL against hand-built rows and rules — 32aadac
 
 ### Phase 2: Rules-file structural validation
 
 #### Automated
 
-- [ ] 2.1 All new tests pass: `uv run pytest tests/test_validation.py -v`
-- [ ] 2.2 `_load_rules` malformed-file tests pass: `uv run pytest tests/test_sync.py -v`
-- [ ] 2.3 Type checking passes: `uv run mypy dataguard/`
-- [ ] 2.4 Full suite passes: `uv run pytest`
+- [x] 2.1 All new tests pass: `uv run pytest tests/test_validation.py -v`
+- [x] 2.2 `_load_rules` malformed-file tests pass: `uv run pytest tests/test_sync.py -v`
+- [x] 2.3 Type checking passes: `uv run mypy dataguard/`
+- [x] 2.4 Full suite passes: `uv run pytest`
 
 #### Manual
 
-- [ ] 2.5 Malformed rules file fails fast with a clear error before any DB connection
+- [x] 2.5 Malformed rules file fails fast with a clear error before any DB connection
 
 ### Phase 3: Wire `_classify` and ship a real example rules file
 

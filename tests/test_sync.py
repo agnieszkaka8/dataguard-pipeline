@@ -1,11 +1,12 @@
 from datetime import datetime, timezone
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import psycopg2
 import psycopg2.errors
 import pytest
 
-from dataguard.sync import _connect_source, _extract
+from dataguard.sync import _connect_source, _extract, _load_rules
 
 
 # ---------------------------------------------------------------------------
@@ -86,6 +87,44 @@ def test_extract_raises_on_undefined_column() -> None:
         RuntimeError, match="Column 'bad_col' not found in table 'users'"
     ):
         _extract("users", None, "bad_col", conn)
+
+
+# ---------------------------------------------------------------------------
+# _load_rules
+# ---------------------------------------------------------------------------
+
+
+def test_load_rules_valid_file(tmp_path: Path) -> None:
+    rules_path = tmp_path / "rules.json"
+    rules_path.write_text('{"rules": [{"field": "age", "check": "required"}]}')
+    result = _load_rules(rules_path)
+    assert result == [{"field": "age", "check": "required"}]
+
+
+def test_load_rules_invalid_json(tmp_path: Path) -> None:
+    rules_path = tmp_path / "rules.json"
+    rules_path.write_text("{not valid json")
+    with pytest.raises(RuntimeError, match="Rules file is not valid JSON"):
+        _load_rules(rules_path)
+
+
+def test_load_rules_malformed_schema_unknown_check(tmp_path: Path) -> None:
+    rules_path = tmp_path / "rules.json"
+    rules_path.write_text(
+        '{"rules": [{"field": "email", "check": "regexp", "value": "^a$"}]}'
+    )
+    with pytest.raises(
+        RuntimeError,
+        match=r"rule #1 has unknown check 'regexp' \(did you mean 'regex'\?\)",
+    ):
+        _load_rules(rules_path)
+
+
+def test_load_rules_malformed_schema_missing_rules_key(tmp_path: Path) -> None:
+    rules_path = tmp_path / "rules.json"
+    rules_path.write_text("{}")
+    with pytest.raises(RuntimeError, match="must be an object with a 'rules' list"):
+        _load_rules(rules_path)
 
 
 # ---------------------------------------------------------------------------

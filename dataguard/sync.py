@@ -11,6 +11,7 @@ from psycopg2 import sql
 from rich.console import Console
 
 from dataguard.models import Outcome, RecordResult
+from dataguard.rules import validate_rules_schema
 from dataguard.watermark import read_watermark
 
 console = Console(no_color=bool(os.environ.get("NO_COLOR")))
@@ -30,6 +31,8 @@ def run_sync(
     """
     _source_conn: psycopg2.extensions.connection | None = None
     try:
+        rules = _load_rules(rules_path)
+
         console.print("[bold]Connecting[/bold] to Source DB…")
         _source_conn = _connect_source()
 
@@ -38,8 +41,6 @@ def run_sync(
         console.print(f"[bold]Extracting[/bold] records from [cyan]{table}[/cyan]…")
         records = _extract(table, since_dt, timestamp_col, _source_conn)
         console.print(f"  {len(records)} record(s) fetched")
-
-        rules = _load_rules(rules_path)
 
         console.print("[bold]Validating[/bold] records…")
         results = [_classify(row, rules) for row in records]
@@ -113,14 +114,15 @@ def _extract(
         return [dict(zip(cols, row)) for row in cur.fetchall()]
 
 
-def _load_rules(path: Path) -> dict[str, Any]:
+def _load_rules(path: Path) -> list[dict[str, Any]]:
     try:
-        return json.loads(path.read_text())
+        rules_data = json.loads(path.read_text())
     except json.JSONDecodeError as exc:
         raise RuntimeError("Rules file is not valid JSON") from exc
+    return validate_rules_schema(rules_data)
 
 
-def _classify(row: dict[str, Any], rules: dict[str, Any]) -> RecordResult:
+def _classify(row: dict[str, Any], rules: list[dict[str, Any]]) -> RecordResult:
     return RecordResult(row_id=row.get("id"), outcome=Outcome.VALID)
 
 

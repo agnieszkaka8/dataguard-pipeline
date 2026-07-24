@@ -1,7 +1,9 @@
 from typing import Any
 
+import pytest
+
 from dataguard.models import Outcome
-from dataguard.rules import evaluate
+from dataguard.rules import evaluate, validate_rules_schema
 
 # ---------------------------------------------------------------------------
 # required
@@ -202,3 +204,97 @@ def test_rules_for_unrelated_fields_are_ignored() -> None:
     rules = [{"field": "age", "check": "required"}]
     # row has other fields the rules don't mention — must not affect outcome
     assert evaluate({"age": 30, "extra": "whatever"}, rules) is None
+
+
+# ---------------------------------------------------------------------------
+# validate_rules_schema
+# ---------------------------------------------------------------------------
+
+
+def test_validate_rules_schema_valid_file_returns_rules_list() -> None:
+    rules_data = {
+        "rules": [
+            {"field": "age", "check": "required"},
+            {"field": "age", "check": "type", "value": "int"},
+            {"field": "age", "check": "gte", "value": 0},
+            {"field": "email", "check": "regex", "value": r"^[^@]+@[^@]+$"},
+        ]
+    }
+    assert validate_rules_schema(rules_data) == rules_data["rules"]
+
+
+def test_validate_rules_schema_required_check_needs_no_value() -> None:
+    rules_data = {"rules": [{"field": "age", "check": "required"}]}
+    assert validate_rules_schema(rules_data) == rules_data["rules"]
+
+
+def test_validate_rules_schema_missing_rules_key() -> None:
+    with pytest.raises(RuntimeError, match="must be an object with a 'rules' list"):
+        validate_rules_schema({})
+
+
+def test_validate_rules_schema_rules_not_a_list() -> None:
+    with pytest.raises(RuntimeError, match="must be an object with a 'rules' list"):
+        validate_rules_schema({"rules": {"field": "age"}})
+
+
+def test_validate_rules_schema_rule_not_an_object() -> None:
+    with pytest.raises(RuntimeError, match=r"rule #1 must be an object"):
+        validate_rules_schema({"rules": ["not-a-dict"]})
+
+
+def test_validate_rules_schema_rule_missing_field() -> None:
+    with pytest.raises(RuntimeError, match=r"rule #1 missing 'field'"):
+        validate_rules_schema({"rules": [{"check": "required"}]})
+
+
+def test_validate_rules_schema_rule_field_not_a_string() -> None:
+    with pytest.raises(RuntimeError, match=r"rule #1 'field' must be a string"):
+        validate_rules_schema({"rules": [{"field": 123, "check": "required"}]})
+
+
+def test_validate_rules_schema_rule_missing_check() -> None:
+    with pytest.raises(RuntimeError, match=r"rule #1 missing 'check'"):
+        validate_rules_schema({"rules": [{"field": "age"}]})
+
+
+def test_validate_rules_schema_unknown_check_with_suggestion() -> None:
+    with pytest.raises(
+        RuntimeError,
+        match=r"rule #1 has unknown check 'regexp' \(did you mean 'regex'\?\)",
+    ):
+        validate_rules_schema(
+            {"rules": [{"field": "email", "check": "regexp", "value": "^a$"}]}
+        )
+
+
+def test_validate_rules_schema_unknown_check_no_suggestion() -> None:
+    with pytest.raises(RuntimeError, match=r"rule #1 has unknown check 'zzzzz'$"):
+        validate_rules_schema({"rules": [{"field": "email", "check": "zzzzz"}]})
+
+
+def test_validate_rules_schema_non_required_check_missing_value() -> None:
+    with pytest.raises(RuntimeError, match=r"rule #1 \('type'\) missing 'value'"):
+        validate_rules_schema({"rules": [{"field": "age", "check": "type"}]})
+
+
+def test_validate_rules_schema_type_check_unknown_type_with_suggestion() -> None:
+    with pytest.raises(
+        RuntimeError,
+        match=r"rule #1 has unknown type 'itn' \(did you mean 'int'\?\)",
+    ):
+        validate_rules_schema(
+            {"rules": [{"field": "age", "check": "type", "value": "itn"}]}
+        )
+
+
+def test_validate_rules_schema_reports_correct_one_based_index() -> None:
+    rules_data = {
+        "rules": [
+            {"field": "age", "check": "required"},
+            {"field": "age", "check": "type", "value": "int"},
+            {"field": "email", "check": "regexp", "value": "^a$"},
+        ]
+    }
+    with pytest.raises(RuntimeError, match=r"rule #3 has unknown check 'regexp'"):
+        validate_rules_schema(rules_data)
