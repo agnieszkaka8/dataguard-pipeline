@@ -293,12 +293,12 @@ Not applicable — `rules/orders.json` was an unused empty placeholder; no exist
 
 #### Automated
 
-- [x] 3.1 All `_classify` tests pass: `uv run pytest tests/test_sync.py -v`
-- [x] 3.2 Full suite passes: `uv run pytest`
-- [x] 3.3 Type checking passes: `uv run mypy dataguard/`
-- [x] 3.4 Linting passes: `uv run ruff format --check . && uv run ruff check .`
-- [x] 3.5 `rules/orders.json` parses and passes `validate_rules_schema`
+- [x] 3.1 All `_classify` tests pass: `uv run pytest tests/test_sync.py -v` — 92271e8
+- [x] 3.2 Full suite passes: `uv run pytest` — 92271e8
+- [x] 3.3 Type checking passes: `uv run mypy dataguard/` — 92271e8
+- [x] 3.4 Linting passes: `uv run ruff format --check . && uv run ruff check .` — 92271e8
+- [x] 3.5 `rules/orders.json` parses and passes `validate_rules_schema` — 92271e8
 
 #### Manual
 
-- [x] 3.6 Real/test Source DB dry-run shows correct Passed/Failed/Errored split, no field-value leakage in console output
+- [x] 3.6 Real/test Source DB dry-run shows correct Passed/Failed/Errored split, no field-value leakage in console output — 92271e8
