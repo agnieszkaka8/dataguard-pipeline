@@ -298,3 +298,24 @@ def test_validate_rules_schema_reports_correct_one_based_index() -> None:
     }
     with pytest.raises(RuntimeError, match=r"rule #3 has unknown check 'regexp'"):
         validate_rules_schema(rules_data)
+
+
+def test_validate_rules_schema_rejects_uncompilable_regex() -> None:
+    with pytest.raises(RuntimeError, match=r"rule #1 has invalid regex pattern"):
+        validate_rules_schema(
+            {"rules": [{"field": "email", "check": "regex", "value": "(unclosed"}]}
+        )
+
+
+def test_validate_rules_schema_rejects_non_string_regex_value() -> None:
+    with pytest.raises(RuntimeError, match=r"rule #1 has invalid regex pattern"):
+        validate_rules_schema(
+            {"rules": [{"field": "email", "check": "regex", "value": 123}]}
+        )
+
+
+def test_validate_rules_schema_accepts_valid_regex() -> None:
+    rules_data = {
+        "rules": [{"field": "email", "check": "regex", "value": r"^[^@]+@[^@]+$"}]
+    }
+    assert validate_rules_schema(rules_data) == rules_data["rules"]

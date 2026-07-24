@@ -89,7 +89,9 @@ _CHECKS: dict[str, _RuleHandler] = {
 
 def evaluate(row: dict[str, Any], rules: list[dict[str, Any]]) -> RuleResult:
     """Return (Outcome.INVALID | Outcome.ERRORED, reason) for the first failing
-    rule that applies to this row's fields, or None if every rule passes."""
+    rule that applies to this row's fields, or None if every rule passes.
+
+    Expects `rules` to already be schema-validated (see validate_rules_schema)."""
     for rule in rules:
         field = rule["field"]
         handler = _CHECKS[rule["check"]]
@@ -148,5 +150,13 @@ def validate_rules_schema(rules_data: dict[str, Any]) -> list[dict[str, Any]]:
                 f"Rules file is invalid — rule #{index} has unknown type "
                 f"'{rule['value']}'{_suggest(rule['value'], _TYPE_NAMES.keys())}"
             )
+
+        if check == "regex":
+            try:
+                re.compile(rule["value"])
+            except (re.error, TypeError) as exc:
+                raise RuntimeError(
+                    f"Rules file is invalid — rule #{index} has invalid regex pattern: {exc}"
+                ) from exc
 
     return rules

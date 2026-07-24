@@ -1,7 +1,7 @@
 ---
 change_id: validation-engine
 title: Implement rules validation engine and classification summary (S-02)
-status: implemented
+status: impl_reviewed
 created: 2026-07-12
 updated: 2026-07-24
 ---
