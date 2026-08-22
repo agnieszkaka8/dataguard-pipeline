@@ -9,8 +9,10 @@ import pytest
 from dataguard.models import Outcome, RecordResult
 from dataguard.sync import (
     _classify,
+    _commit_valid,
     _connect_source,
     _connect_supabase,
+    _connect_target,
     _extract,
     _load_rules,
     _write_rejections_to_supabase,
@@ -286,6 +288,63 @@ def test_write_rejections_aborts_on_execute_failure() -> None:
             match="Supabase rejection write failed — aborting, Target DB untouched",
         ):
             _write_rejections_to_supabase(invalid_pairs, "orders")
+
+
+# ---------------------------------------------------------------------------
+# _connect_target
+# ---------------------------------------------------------------------------
+
+
+def test_connect_target_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    mock_conn = MagicMock()
+    monkeypatch.setenv("TARGET_DB", "postgresql://fake/db")
+    with patch("psycopg2.connect", return_value=mock_conn):
+        result = _connect_target()
+    assert result is mock_conn
+
+
+def test_connect_target_operational_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TARGET_DB", "postgresql://fake/db")
+
+    def _raise(dsn: str) -> None:
+        raise psycopg2.OperationalError("connection refused")
+
+    with patch("psycopg2.connect", side_effect=_raise):
+        with pytest.raises(RuntimeError, match="Target DB connection failed"):
+            _connect_target()
+
+
+# ---------------------------------------------------------------------------
+# _commit_valid
+# ---------------------------------------------------------------------------
+
+
+def test_commit_valid_dynamic_columns_and_executemany() -> None:
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+    valid_pairs = [
+        ({"id": 1, "name": "Alice"}, RecordResult(row_id=1, outcome=Outcome.VALID)),
+        ({"id": 2, "name": "Bob"}, RecordResult(row_id=2, outcome=Outcome.VALID)),
+    ]
+
+    _commit_valid(valid_pairs, "users", conn)
+
+    cur.executemany.assert_called_once()
+    query, params = cur.executemany.call_args[0]
+    executed_query = str(query).upper()
+    assert "INSERT INTO" in executed_query
+    assert "USERS" in executed_query
+    assert params == [(1, "Alice"), (2, "Bob")]
+    conn.commit.assert_called_once()
+
+
+def test_commit_valid_empty_pairs_is_noop() -> None:
+    conn = MagicMock()
+
+    _commit_valid([], "users", conn)
+
+    conn.cursor.assert_not_called()
+    conn.commit.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

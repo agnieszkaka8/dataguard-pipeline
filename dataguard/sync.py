@@ -31,6 +31,7 @@ def run_sync(
     any valid records are committed to Target DB.
     """
     _source_conn: psycopg2.extensions.connection | None = None
+    _target_conn: psycopg2.extensions.connection | None = None
     try:
         rules = _load_rules(rules_path)
 
@@ -57,9 +58,8 @@ def run_sync(
                 )
                 _write_rejections_to_supabase(invalid_pairs, table)
 
-            _target_conn = _connect_target()
-
             if valid_pairs:
+                _target_conn = _connect_target()
                 console.print(
                     f"[bold]Writing[/bold] {len(valid_pairs)} valid record(s) to Target DB…"
                 )
@@ -71,6 +71,8 @@ def run_sync(
     finally:
         if _source_conn is not None:
             _source_conn.close()
+        if _target_conn is not None:
+            _target_conn.close()
 
 
 # ---------------------------------------------------------------------------
@@ -85,8 +87,11 @@ def _connect_source() -> psycopg2.extensions.connection:
         raise RuntimeError("Source DB connection failed") from exc
 
 
-def _connect_target() -> object:
-    raise NotImplementedError
+def _connect_target() -> psycopg2.extensions.connection:
+    try:
+        return psycopg2.connect(os.environ["TARGET_DB"])
+    except psycopg2.OperationalError as exc:
+        raise RuntimeError("Target DB connection failed") from exc
 
 
 def _extract(
@@ -165,6 +170,17 @@ def _write_rejections_to_supabase(
 def _commit_valid(
     valid_pairs: list[tuple[dict[str, Any], RecordResult]],
     table: str,
-    conn: object,
+    conn: psycopg2.extensions.connection,
 ) -> None:
-    raise NotImplementedError
+    if not valid_pairs:
+        return
+    rows = [row for row, _ in valid_pairs]
+    columns = list(rows[0].keys())
+    query = sql.SQL("INSERT INTO {t} ({cols}) VALUES ({vals})").format(
+        t=sql.Identifier(table),
+        cols=sql.SQL(", ").join(sql.Identifier(c) for c in columns),
+        vals=sql.SQL(", ").join(sql.Placeholder() for _ in columns),
+    )
+    with conn.cursor() as cur:
+        cur.executemany(query, [tuple(row[c] for c in columns) for row in rows])
+    conn.commit()
