@@ -3,7 +3,7 @@ project: DataGuard
 version: 1
 status: draft
 created: 2026-06-05
-updated: 2026-07-24
+updated: 2026-08-22
 prd_version: 1
 main_goal: speed
 top_blocker: decisions
@@ -31,7 +31,7 @@ Data engineers transfer records between two relational databases and have no rel
 |------|------------------------|-------------------------------------------------------------------------------------------|---------------|----------------------------------------|----------|
 | S-01 | source-db-extraction   | connect to Source DB and extract records since the watermark                              | —             | FR-001, FR-003, FR-004, FR-007         | done     |
 | S-02 | validation-engine      | validate extracted records against a rules file and see a classification summary          | S-01          | FR-002, FR-003, FR-004, FR-005, FR-006 | done |
-| S-03 | live-sync-write-cycle  | complete a live sync — rejections to Supabase, valid records to Target DB, watermark updated | S-02       | FR-003, FR-007, US-01                  | proposed |
+| S-03 | live-sync-write-cycle  | complete a live sync — rejections to Supabase, valid records to Target DB, watermark updated | S-02       | FR-003, FR-007, US-01                  | done |
 | S-04 | watermark-override     | override the watermark with `--since` for testing or recovery                             | S-03          | FR-008                                 | proposed |
 
 ## Baseline
@@ -94,7 +94,7 @@ No foundations identified. The existing codebase scaffold (`run_sync()` orchestr
   - What is the Supabase rejection log table schema (column names, types, required fields)? Owner: developer. Block: no (developer designs schema before implementing `_write_rejections_to_supabase`).
   - Should `_commit_valid` use INSERT or UPSERT semantics for Target DB writes? Owner: developer. Block: no.
 - **Risk:** Write-order guarantee is the hardest constraint: Supabase write must succeed before any Target DB commit; if Supabase fails mid-run, the entire run must abort with no partial Target DB writes. This is the irreversible slice — a bug here corrupts Target DB or leaves the audit trail incomplete. Partial-write handling must be explicitly designed, not left to the happy path.
-- **Status:** proposed
+- **Status:** done
 
 ---
 
@@ -141,3 +141,4 @@ No foundations identified. The existing codebase scaffold (`run_sync()` orchestr
 
 - **S-01: connect to Source DB and extract records since the watermark** — Archived 2026-07-11 → `context/archive/2026-06-05-source-db-extraction/`. Lesson: —.
 - **S-02: validate extracted records against a rules file and see a color-coded classification summary (Total / Passed / Failed / Errored)** — Archived 2026-07-24 → `context/archive/2026-07-12-validation-engine/`. Lesson: —.
+- **S-03: complete a live sync — rejections logged to Supabase with exact rule violations, valid records written to Target DB, write order enforced, watermark updated on success** — Archived 2026-08-22 → `context/archive/2026-07-24-live-sync-write-cycle/`. Lesson: —.
