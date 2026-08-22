@@ -209,10 +209,10 @@ None — no schema or data changes; `.watermark` file format is unchanged.
 
 #### Automated
 
-- [x] 2.1 All CLI tests pass: `uv run pytest tests/test_cli.py -v -m "not integration"`
-- [x] 2.2 Type checking passes: `uv run mypy dataguard/`
-- [x] 2.3 Linting passes: `uv run ruff check . && uv run ruff format --check .`
-- [x] 2.4 Full suite passes: `uv run pytest -m "not integration"`
+- [x] 2.1 All CLI tests pass: `uv run pytest tests/test_cli.py -v -m "not integration"` — d5604b4
+- [x] 2.2 Type checking passes: `uv run mypy dataguard/` — d5604b4
+- [x] 2.3 Linting passes: `uv run ruff check . && uv run ruff format --check .` — d5604b4
+- [x] 2.4 Full suite passes: `uv run pytest -m "not integration"` — d5604b4
 
 #### Manual
 

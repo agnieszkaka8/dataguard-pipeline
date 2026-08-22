@@ -1,7 +1,7 @@
 ---
 change_id: watermark-override
 title: Watermark override
-status: planned
+status: implemented
 created: 2026-08-22
 updated: 2026-08-22
 archived_at: null
