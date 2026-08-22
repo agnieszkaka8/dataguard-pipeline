@@ -58,7 +58,14 @@ def sync(
 
 
 def _guard_since_override(since: Optional[str]) -> None:
-    if since is not None and check_since_override(since):
+    if since is None:
+        return
+    try:
+        risky = check_since_override(since)
+    except ValueError:
+        console.print(f"[red]Invalid --since timestamp:[/red] {since}")
+        raise typer.Exit(code=1)
+    if risky:
         console.print(
             f"[bold red]Warning:[/bold red] --since {since} predates the current "
             "watermark. This will re-process already-synced records and may "
