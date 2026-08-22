@@ -200,19 +200,19 @@ None — no schema or data changes; `.watermark` file format is unchanged.
 
 #### Automated
 
-- [x] 1.1 All watermark tests pass: `uv run pytest tests/test_watermark.py -v -m "not integration"`
-- [x] 1.2 Type checking passes: `uv run mypy dataguard/`
-- [x] 1.3 Linting passes: `uv run ruff check . && uv run ruff format --check .`
-- [x] 1.4 Full suite passes: `uv run pytest -m "not integration"`
+- [x] 1.1 All watermark tests pass: `uv run pytest tests/test_watermark.py -v -m "not integration"` — 42a42f5
+- [x] 1.2 Type checking passes: `uv run mypy dataguard/` — 42a42f5
+- [x] 1.3 Linting passes: `uv run ruff check . && uv run ruff format --check .` — 42a42f5
+- [x] 1.4 Full suite passes: `uv run pytest -m "not integration"` — 42a42f5
 
 ### Phase 2: CLI warning and confirmation gate
 
 #### Automated
 
-- [ ] 2.1 All CLI tests pass: `uv run pytest tests/test_cli.py -v -m "not integration"`
-- [ ] 2.2 Type checking passes: `uv run mypy dataguard/`
-- [ ] 2.3 Linting passes: `uv run ruff check . && uv run ruff format --check .`
-- [ ] 2.4 Full suite passes: `uv run pytest -m "not integration"`
+- [x] 2.1 All CLI tests pass: `uv run pytest tests/test_cli.py -v -m "not integration"`
+- [x] 2.2 Type checking passes: `uv run mypy dataguard/`
+- [x] 2.3 Linting passes: `uv run ruff check . && uv run ruff format --check .`
+- [x] 2.4 Full suite passes: `uv run pytest -m "not integration"`
 
 #### Manual
 

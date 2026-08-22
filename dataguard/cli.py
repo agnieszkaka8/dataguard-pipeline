@@ -9,6 +9,7 @@ from rich.table import Table
 from dataguard.env_check import env_check
 from dataguard.models import Outcome
 from dataguard.sync import run_sync
+from dataguard.watermark import check_since_override
 
 app = typer.Typer(no_args_is_help=True)
 console = Console(no_color=bool(os.environ.get("NO_COLOR")))
@@ -35,6 +36,7 @@ def sync(
 ) -> None:
     """Sync records from Source DB to Target DB with validation."""
     env_check()
+    _guard_since_override(since)
 
     if not rules.exists():
         console.print(f"[red]Rules file not found:[/red] {rules}")
@@ -53,6 +55,16 @@ def sync(
         raise typer.Exit(code=1)
 
     _print_summary(results, dry_run)
+
+
+def _guard_since_override(since: Optional[str]) -> None:
+    if since is not None and check_since_override(since):
+        console.print(
+            f"[bold red]Warning:[/bold red] --since {since} predates the current "
+            "watermark. This will re-process already-synced records and may "
+            "create duplicates in Target DB."
+        )
+        typer.confirm("Continue anyway?", abort=True)
 
 
 def _print_summary(results: list, dry_run: bool) -> None:
