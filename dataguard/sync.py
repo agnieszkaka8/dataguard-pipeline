@@ -141,6 +141,13 @@ def _classify(row: dict[str, Any], rules: list[dict[str, Any]]) -> RecordResult:
     return RecordResult(row_id=row_id, outcome=outcome, reason=reason)
 
 
+def _json_safe(value: Any) -> str:
+    """Fallback encoder for values json.dumps can't serialize natively (datetime, Decimal, UUID, ...)."""
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return str(value)
+
+
 def _connect_supabase() -> Client:
     try:
         return create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
@@ -158,7 +165,7 @@ def _write_rejections_to_supabase(
             "table_name": table,
             "outcome": result.outcome.value,
             "reason": result.reason,
-            "raw_record": row,
+            "raw_record": json.loads(json.dumps(row, default=_json_safe)),
         }
         for row, result in invalid_pairs
     ]

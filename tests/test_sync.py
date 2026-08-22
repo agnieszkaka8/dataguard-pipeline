@@ -276,6 +276,27 @@ def test_write_rejections_single_batch_call_not_looped() -> None:
     assert client.table.return_value.insert.return_value.execute.call_count == 1
 
 
+def test_write_rejections_sanitizes_non_json_native_values() -> None:
+    client = _make_mock_supabase_client()
+    created_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    invalid_pairs = [
+        (
+            {"id": 1, "created_at": created_at},
+            RecordResult(row_id=1, outcome=Outcome.INVALID, reason="r"),
+        ),
+    ]
+    with patch("dataguard.sync._connect_supabase", return_value=client):
+        _write_rejections_to_supabase(invalid_pairs, "orders")
+
+    inserted_rows = client.table.return_value.insert.call_args[0][0]
+    assert inserted_rows[0]["raw_record"] == {
+        "id": 1,
+        "created_at": created_at.isoformat(),
+    }
+    # Must actually be JSON-serializable end to end, not just equal by luck.
+    json.dumps(inserted_rows)
+
+
 def test_write_rejections_aborts_on_execute_failure() -> None:
     client = _make_mock_supabase_client()
     client.table.return_value.insert.return_value.execute.side_effect = Exception(
