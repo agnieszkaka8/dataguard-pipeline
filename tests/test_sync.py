@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import psycopg2
 import psycopg2.errors
@@ -361,6 +361,18 @@ def test_commit_valid_dynamic_columns_and_executemany() -> None:
     conn.commit.assert_called_once()
 
 
+def test_commit_valid_raises_on_db_error() -> None:
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+    cur.executemany.side_effect = psycopg2.Error("constraint violation")
+    valid_pairs = [({"id": 1}, RecordResult(row_id=1, outcome=Outcome.VALID))]
+
+    with pytest.raises(RuntimeError, match="Target DB write failed"):
+        _commit_valid(valid_pairs, "users", conn)
+
+    conn.commit.assert_not_called()
+
+
 def test_commit_valid_empty_pairs_is_noop() -> None:
     conn = MagicMock()
 
@@ -389,16 +401,28 @@ def test_run_sync_writes_watermark_once_on_success(
     source_conn = MagicMock()
     target_conn = MagicMock()
     write_watermark_mock = MagicMock()
+    write_rejections_mock = MagicMock()
+    commit_valid_mock = MagicMock()
+    manager = Mock()
+    manager.attach_mock(write_rejections_mock, "write_rejections")
+    manager.attach_mock(commit_valid_mock, "commit_valid")
 
     monkeypatch.setattr("dataguard.sync._connect_source", lambda: source_conn)
     monkeypatch.setattr("dataguard.sync._extract", lambda *args, **kwargs: records)
     monkeypatch.setattr("dataguard.sync._connect_target", lambda: target_conn)
-    monkeypatch.setattr("dataguard.sync._write_rejections_to_supabase", MagicMock())
-    monkeypatch.setattr("dataguard.sync._commit_valid", MagicMock())
+    monkeypatch.setattr(
+        "dataguard.sync._write_rejections_to_supabase", write_rejections_mock
+    )
+    monkeypatch.setattr("dataguard.sync._commit_valid", commit_valid_mock)
     monkeypatch.setattr("dataguard.sync.write_watermark", write_watermark_mock)
 
     run_sync("orders", rules_path, dry_run=False, since="2026-01-01T00:00:00+00:00")
 
+    # Write-order hard rule: rejections logged before Target DB commit.
+    assert [call[0] for call in manager.mock_calls] == [
+        "write_rejections",
+        "commit_valid",
+    ]
     write_watermark_mock.assert_called_once()
     source_conn.close.assert_called_once()
     target_conn.close.assert_called_once()

@@ -79,7 +79,7 @@ def run_sync(
 
 
 # ---------------------------------------------------------------------------
-# Stubs — each becomes its own module/function as implementation grows
+# Pipeline stages
 # ---------------------------------------------------------------------------
 
 
@@ -149,8 +149,10 @@ def _json_safe(value: Any) -> str:
 
 
 def _connect_supabase() -> Client:
+    url = os.environ["SUPABASE_URL"]
+    key = os.environ["SUPABASE_KEY"]
     try:
-        return create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
+        return create_client(url, key)
     except Exception as exc:
         raise RuntimeError("Supabase client creation failed") from exc
 
@@ -191,6 +193,9 @@ def _commit_valid(
         cols=sql.SQL(", ").join(sql.Identifier(c) for c in columns),
         vals=sql.SQL(", ").join(sql.Placeholder() for _ in columns),
     )
-    with conn.cursor() as cur:
-        cur.executemany(query, [tuple(row[c] for c in columns) for row in rows])
-    conn.commit()
+    try:
+        with conn.cursor() as cur:
+            cur.executemany(query, [tuple(row[c] for c in columns) for row in rows])
+        conn.commit()
+    except Exception as exc:
+        raise RuntimeError("Target DB write failed") from exc

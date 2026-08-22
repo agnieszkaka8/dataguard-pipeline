@@ -32,7 +32,7 @@
   - Tradeoff: `default=str` loses type fidelity in the stored JSONB (a Decimal becomes a string, not a number) — acceptable here since `raw_record` is an audit/debug payload, not queried numerically.
   - Confidence: HIGH — reproduced the failure directly against this repo's dependencies (httpx's actual serialization path), not a hypothetical.
   - Blind spot: Haven't checked whether any Source DB column type beyond datetime/Decimal/UUID (e.g. `bytes` from a `bytea` column) would also fail `default=str` silently-wrong rather than erroring — worth a quick scan of the real Source DB schema before closing this out.
-- **Decision**: PENDING
+- **Decision**: FIXED — `1fa670c`. Implemented as a dedicated `_json_safe` encoder (datetime → `isoformat()`, other types → `str()`) rather than plain `default=str`, since `str(datetime)` uses a space separator, not a true ISO `T` separator. Regression test `test_write_rejections_sanitizes_non_json_native_values` added.
 
 ### F2 — `_commit_valid` has no error boundary around `executemany`/`commit`
 
@@ -42,7 +42,7 @@
 - **Location**: dataguard/sync.py:187-189
 - **Detail**: Unlike `_connect_source`, `_connect_target`, and `_write_rejections_to_supabase` (all catch and re-raise as `RuntimeError` with a clear message), `_commit_valid`'s `cur.executemany(...)` / `conn.commit()` calls are unguarded — a raw psycopg2 exception (constraint violation, type mismatch, dropped connection) propagates unwrapped. `run_sync`'s `finally` still closes the connection and no leakage occurs, but it's an inconsistent boundary and untested (existing `_commit_valid` tests cover only success and empty-list).
 - **Fix**: Wrap in try/except → `raise RuntimeError("Target DB write failed") from exc`; add `test_commit_valid_raises_on_db_error`.
-- **Decision**: PENDING
+- **Decision**: FIXED — pending commit. `executemany`/`commit` now wrapped in try/except; regression test `test_commit_valid_raises_on_db_error` added.
 
 ### F3 — `_connect_supabase` catches bare `Exception`, masking missing-env-var errors
 
@@ -52,7 +52,7 @@
 - **Location**: dataguard/sync.py:144-148
 - **Detail**: Sibling connectors (`_connect_source`, `_connect_target`) catch the specific `psycopg2.OperationalError`; `_connect_supabase` catches bare `Exception`, and since the `os.environ[...]` lookups sit inside the try, a missing `SUPABASE_URL`/`SUPABASE_KEY` raises `KeyError`, masked as "Supabase client creation failed" instead of a config error. Currently moot in the CLI path (`env_check()` validates all four required vars first), but inconsistent and would misreport root cause if this function is ever called outside that guard.
 - **Fix**: Narrow the except to what `create_client` actually documents raising, or validate/read the two env vars explicitly before entering the try.
-- **Decision**: PENDING
+- **Decision**: FIXED — pending commit. Env var lookups moved outside the try; a missing var now raises `KeyError` uncaught instead of being masked as "Supabase client creation failed."
 
 ### F4 — Write-order invariant not directly asserted in the mixed-batch success test
 
@@ -62,7 +62,7 @@
 - **Location**: tests/test_sync.py:363-384 (`test_run_sync_writes_watermark_once_on_success`)
 - **Detail**: This is the only orchestration test with a genuinely mixed batch (one valid, one invalid) — exactly the scenario AGENTS.md's write-order hard rule targets — but it never asserts *ordering* between `_write_rejections_to_supabase` and `_commit_valid` (both mocks are only checked for call count / close). The abort-path test proves ordering indirectly for the failure case only; the success-path ordering invariant is asserted nowhere directly.
 - **Fix**: Attach both mocks to a shared `unittest.mock.Mock()` manager and assert `mock_calls` order in the mixed-batch success test.
-- **Decision**: PENDING
+- **Decision**: FIXED — pending commit. `test_run_sync_writes_watermark_once_on_success` now attaches both mocks to a `Mock()` manager and asserts `write_rejections` precedes `commit_valid`.
 
 ### F5 — Stale "Stubs" section comment
 
@@ -72,7 +72,7 @@
 - **Location**: dataguard/sync.py:81-83
 - **Detail**: The comment `"Stubs — each becomes its own module/function as implementation grows"` is stale — `_connect_supabase`, `_connect_target`, `_write_rejections_to_supabase`, `_commit_valid` are now full implementations, not stubs.
 - **Fix**: Update or remove the comment.
-- **Decision**: PENDING
+- **Decision**: FIXED — pending commit. Section header changed to "Pipeline stages".
 
 ### F6 — Minor test-helper redundancy
 
@@ -82,7 +82,7 @@
 - **Location**: tests/test_sync.py:226-228, 324-326
 - **Detail**: `_make_mock_supabase_client()` is a one-line pass-through around `MagicMock()` with no setup, adding indirection without value. `test_commit_valid_dynamic_columns_and_executemany` re-derives `conn.cursor.return_value.__enter__.return_value` inline instead of extending `_make_mock_conn` — mirrors an existing precedent elsewhere in the file, so not a new deviation, just a consolidation opportunity.
 - **Fix**: Optional — collapse into one `_mock_conn_with_cursor()` helper shared by extract/commit tests; drop `_make_mock_supabase_client` in favor of `MagicMock()` directly.
-- **Decision**: PENDING
+- **Decision**: SKIPPED — cosmetic, matches an existing precedent already in the file.
 
 ### F7 — `rejections.sql` schema minor hardening opportunities
 
@@ -92,7 +92,7 @@
 - **Location**: supabase/rejections.sql
 - **Detail**: `row_id TEXT` will receive integer values for integer/bigint-PK tables (`RecordResult.row_id` is `Any`, typically `int`); PostgREST generally coerces JSON scalars to the column's text representation without error, so unlikely to break in practice. No `outcome` CHECK constraint restricting to `('invalid','errored')`, no RLS statement (acceptable if this table is only ever written with the service-role key).
 - **Fix**: None required; optional hardening (`CHECK` constraint, explicit RLS comment) if desired.
-- **Decision**: PENDING
+- **Decision**: SKIPPED — no functional issue, optional hardening not required for this slice.
 
 ## Compliant / no issue found
 
