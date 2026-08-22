@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +13,7 @@ from supabase import Client, create_client
 
 from dataguard.models import Outcome, RecordResult
 from dataguard.rules import evaluate, validate_rules_schema
-from dataguard.watermark import read_watermark
+from dataguard.watermark import read_watermark, write_watermark
 
 console = Console(no_color=bool(os.environ.get("NO_COLOR")))
 
@@ -64,6 +64,9 @@ def run_sync(
                     f"[bold]Writing[/bold] {len(valid_pairs)} valid record(s) to Target DB…"
                 )
                 _commit_valid(valid_pairs, table, _target_conn)
+
+            now = datetime.now(timezone.utc)
+            write_watermark(now)
         else:
             console.print("[yellow]Dry-run mode — no writes performed[/yellow]")
 

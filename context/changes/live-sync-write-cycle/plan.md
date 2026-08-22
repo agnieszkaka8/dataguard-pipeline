@@ -313,10 +313,10 @@ Both write paths are single batch calls (one `executemany` for Target DB, one `.
 
 #### Automated
 
-- [x] 2.1 All new tests pass: `uv run pytest tests/test_sync.py -v -m "not integration"`
-- [x] 2.2 Type checking passes: `uv run mypy dataguard/`
-- [x] 2.3 Linting passes: `uv run ruff check . && uv run ruff format --check .`
-- [x] 2.4 Full suite passes: `uv run pytest -m "not integration"`
+- [x] 2.1 All new tests pass: `uv run pytest tests/test_sync.py -v -m "not integration"` — e0ad859
+- [x] 2.2 Type checking passes: `uv run mypy dataguard/` — e0ad859
+- [x] 2.3 Linting passes: `uv run ruff check . && uv run ruff format --check .` — e0ad859
+- [x] 2.4 Full suite passes: `uv run pytest -m "not integration"` — e0ad859
 
 #### Manual
 
@@ -327,10 +327,10 @@ Both write paths are single batch calls (one `executemany` for Target DB, one `.
 
 #### Automated
 
-- [ ] 3.1 All new tests pass: `uv run pytest tests/test_sync.py -v -m "not integration"`
-- [ ] 3.2 Type checking passes: `uv run mypy dataguard/`
-- [ ] 3.3 Linting passes: `uv run ruff check . && uv run ruff format --check .`
-- [ ] 3.4 Full suite passes: `uv run pytest -m "not integration"`
+- [x] 3.1 All new tests pass: `uv run pytest tests/test_sync.py -v -m "not integration"`
+- [x] 3.2 Type checking passes: `uv run mypy dataguard/`
+- [x] 3.3 Linting passes: `uv run ruff check . && uv run ruff format --check .`
+- [x] 3.4 Full suite passes: `uv run pytest -m "not integration"`
 
 #### Manual
 
