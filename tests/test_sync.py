@@ -7,7 +7,14 @@ import psycopg2.errors
 import pytest
 
 from dataguard.models import Outcome, RecordResult
-from dataguard.sync import _classify, _connect_source, _extract, _load_rules
+from dataguard.sync import (
+    _classify,
+    _connect_source,
+    _connect_supabase,
+    _extract,
+    _load_rules,
+    _write_rejections_to_supabase,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -183,6 +190,102 @@ def test_classify_row_id_none_when_id_missing() -> None:
     result = _classify({"age": 1}, rules)
     assert result.row_id is None
     assert result.outcome == Outcome.VALID
+
+
+# ---------------------------------------------------------------------------
+# _connect_supabase
+# ---------------------------------------------------------------------------
+
+
+def test_connect_supabase_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SUPABASE_URL", "https://fake.supabase.co")
+    monkeypatch.setenv("SUPABASE_KEY", "fake-key")
+    mock_client = MagicMock()
+    with patch("dataguard.sync.create_client", return_value=mock_client):
+        result = _connect_supabase()
+    assert result is mock_client
+
+
+def test_connect_supabase_creation_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SUPABASE_URL", "not-a-url")
+    monkeypatch.setenv("SUPABASE_KEY", "fake-key")
+    with patch("dataguard.sync.create_client", side_effect=ValueError("bad url")):
+        with pytest.raises(RuntimeError, match="Supabase client creation failed"):
+            _connect_supabase()
+
+
+# ---------------------------------------------------------------------------
+# _write_rejections_to_supabase
+# ---------------------------------------------------------------------------
+
+
+def _make_mock_supabase_client() -> MagicMock:
+    """Return a mock supabase Client whose .table().insert().execute() chain is inspectable."""
+    return MagicMock()
+
+
+def test_write_rejections_shapes_rows_correctly() -> None:
+    client = _make_mock_supabase_client()
+    invalid_pairs = [
+        (
+            {"id": 1, "email": "bad"},
+            RecordResult(row_id=1, outcome=Outcome.INVALID, reason="email: invalid"),
+        ),
+        (
+            {"id": 2},
+            RecordResult(row_id=2, outcome=Outcome.ERRORED, reason="age: cannot apply"),
+        ),
+    ]
+    with patch("dataguard.sync._connect_supabase", return_value=client):
+        _write_rejections_to_supabase(invalid_pairs, "orders")
+
+    client.table.assert_called_once_with("rejections")
+    inserted_rows = client.table.return_value.insert.call_args[0][0]
+    assert inserted_rows == [
+        {
+            "row_id": 1,
+            "table_name": "orders",
+            "outcome": "invalid",
+            "reason": "email: invalid",
+            "raw_record": {"id": 1, "email": "bad"},
+        },
+        {
+            "row_id": 2,
+            "table_name": "orders",
+            "outcome": "errored",
+            "reason": "age: cannot apply",
+            "raw_record": {"id": 2},
+        },
+    ]
+
+
+def test_write_rejections_single_batch_call_not_looped() -> None:
+    client = _make_mock_supabase_client()
+    invalid_pairs = [
+        ({"id": i}, RecordResult(row_id=i, outcome=Outcome.INVALID, reason="r"))
+        for i in range(5)
+    ]
+    with patch("dataguard.sync._connect_supabase", return_value=client):
+        _write_rejections_to_supabase(invalid_pairs, "orders")
+
+    assert client.table.return_value.insert.call_count == 1
+    assert client.table.return_value.insert.return_value.execute.call_count == 1
+
+
+def test_write_rejections_aborts_on_execute_failure() -> None:
+    client = _make_mock_supabase_client()
+    client.table.return_value.insert.return_value.execute.side_effect = Exception(
+        "network error"
+    )
+    invalid_pairs = [
+        ({"id": 1}, RecordResult(row_id=1, outcome=Outcome.INVALID, reason="r"))
+    ]
+    with patch("dataguard.sync._connect_supabase", return_value=client):
+        with pytest.raises(
+            RuntimeError,
+            match="Supabase rejection write failed — aborting, Target DB untouched",
+        ):
+            _write_rejections_to_supabase(invalid_pairs, "orders")
 
 
 # ---------------------------------------------------------------------------

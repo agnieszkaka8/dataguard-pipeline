@@ -1,9 +1,9 @@
 ---
 change_id: live-sync-write-cycle
 title: Implement Supabase rejection logging and Target DB write cycle (S-03)
-status: planned
+status: implementing
 created: 2026-07-24
-updated: 2026-07-24
+updated: 2026-08-22
 ---
 
 ## Notes

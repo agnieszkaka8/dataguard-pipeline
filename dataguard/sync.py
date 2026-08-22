@@ -9,6 +9,7 @@ import psycopg2.errors
 import psycopg2.extensions
 from psycopg2 import sql
 from rich.console import Console
+from supabase import Client, create_client
 
 from dataguard.models import Outcome, RecordResult
 from dataguard.rules import evaluate, validate_rules_schema
@@ -44,24 +45,25 @@ def run_sync(
 
         console.print("[bold]Validating[/bold] records…")
         results = [_classify(row, rules) for row in records]
+        pairs = list(zip(records, results))
 
-        invalid = [r for r in results if r.outcome != Outcome.VALID]
-        valid = [r for r in results if r.outcome == Outcome.VALID]
+        invalid_pairs = [(row, r) for row, r in pairs if r.outcome != Outcome.VALID]
+        valid_pairs = [(row, r) for row, r in pairs if r.outcome == Outcome.VALID]
 
         if not dry_run:
-            if invalid:
+            if invalid_pairs:
                 console.print(
-                    f"[bold]Logging[/bold] {len(invalid)} rejection(s) to Supabase…"
+                    f"[bold]Logging[/bold] {len(invalid_pairs)} rejection(s) to Supabase…"
                 )
-                _write_rejections_to_supabase(invalid)
+                _write_rejections_to_supabase(invalid_pairs, table)
 
             _target_conn = _connect_target()
 
-            if valid:
+            if valid_pairs:
                 console.print(
-                    f"[bold]Writing[/bold] {len(valid)} valid record(s) to Target DB…"
+                    f"[bold]Writing[/bold] {len(valid_pairs)} valid record(s) to Target DB…"
                 )
-                _commit_valid(valid, table, _target_conn)
+                _commit_valid(valid_pairs, table, _target_conn)
         else:
             console.print("[yellow]Dry-run mode — no writes performed[/yellow]")
 
@@ -131,9 +133,38 @@ def _classify(row: dict[str, Any], rules: list[dict[str, Any]]) -> RecordResult:
     return RecordResult(row_id=row_id, outcome=outcome, reason=reason)
 
 
-def _write_rejections_to_supabase(results: list[RecordResult]) -> None:
-    raise NotImplementedError
+def _connect_supabase() -> Client:
+    try:
+        return create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
+    except Exception as exc:
+        raise RuntimeError("Supabase client creation failed") from exc
 
 
-def _commit_valid(results: list[RecordResult], table: str, conn: object) -> None:
+def _write_rejections_to_supabase(
+    invalid_pairs: list[tuple[dict[str, Any], RecordResult]], table: str
+) -> None:
+    client = _connect_supabase()
+    rows = [
+        {
+            "row_id": result.row_id,
+            "table_name": table,
+            "outcome": result.outcome.value,
+            "reason": result.reason,
+            "raw_record": row,
+        }
+        for row, result in invalid_pairs
+    ]
+    try:
+        client.table("rejections").insert(rows).execute()
+    except Exception as exc:
+        raise RuntimeError(
+            "Supabase rejection write failed — aborting, Target DB untouched"
+        ) from exc
+
+
+def _commit_valid(
+    valid_pairs: list[tuple[dict[str, Any], RecordResult]],
+    table: str,
+    conn: object,
+) -> None:
     raise NotImplementedError
