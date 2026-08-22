@@ -32,7 +32,7 @@ Data engineers transfer records between two relational databases and have no rel
 | S-01 | source-db-extraction   | connect to Source DB and extract records since the watermark                              | —             | FR-001, FR-003, FR-004, FR-007         | done     |
 | S-02 | validation-engine      | validate extracted records against a rules file and see a classification summary          | S-01          | FR-002, FR-003, FR-004, FR-005, FR-006 | done |
 | S-03 | live-sync-write-cycle  | complete a live sync — rejections to Supabase, valid records to Target DB, watermark updated | S-02       | FR-003, FR-007, US-01                  | done |
-| S-04 | watermark-override     | override the watermark with `--since` for testing or recovery                             | S-03          | FR-008                                 | proposed |
+| S-04 | watermark-override     | override the watermark with `--since` for testing or recovery                             | S-03          | FR-008                                 | done |
 
 ## Baseline
 
@@ -109,7 +109,7 @@ No foundations identified. The existing codebase scaffold (`run_sync()` orchestr
 - **Unknowns:**
   - Should `--since` predating the existing watermark require an explicit acknowledgment flag, or a prominent warning only? Owner: developer. Block: no.
 - **Risk:** A wrong `--since` timestamp causes duplicate records in Target DB. PRD §FR-008 requires a prominent warning before proceeding; this must be implemented before the slice ships.
-- **Status:** proposed
+- **Status:** done
 
 ## Backlog Handoff
 
@@ -142,3 +142,4 @@ No foundations identified. The existing codebase scaffold (`run_sync()` orchestr
 - **S-01: connect to Source DB and extract records since the watermark** — Archived 2026-07-11 → `context/archive/2026-06-05-source-db-extraction/`. Lesson: —.
 - **S-02: validate extracted records against a rules file and see a color-coded classification summary (Total / Passed / Failed / Errored)** — Archived 2026-07-24 → `context/archive/2026-07-12-validation-engine/`. Lesson: —.
 - **S-03: complete a live sync — rejections logged to Supabase with exact rule violations, valid records written to Target DB, write order enforced, watermark updated on success** — Archived 2026-08-22 → `context/archive/2026-07-24-live-sync-write-cycle/`. Lesson: —.
+- **S-04: pass `--since <timestamp>` to override the watermark and re-process records from a specific point for testing or recovery** — Archived 2026-08-22 → `context/archive/2026-08-22-watermark-override/`. Lesson: —.
