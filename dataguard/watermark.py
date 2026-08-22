@@ -9,6 +9,19 @@ console = Console(no_color=bool(os.environ.get("NO_COLOR")))
 _WATERMARK_PATH = Path(".watermark")
 
 
+def _read_stored_watermark() -> datetime | None:
+    """Read the raw .watermark file. None if missing; corrupted file is a hard error."""
+    if not _WATERMARK_PATH.exists():
+        return None
+    try:
+        content = _WATERMARK_PATH.read_text().strip()
+        return datetime.fromisoformat(content).astimezone(timezone.utc)
+    except (ValueError, OSError) as exc:
+        raise RuntimeError(
+            "Corrupted .watermark file — delete it to start fresh"
+        ) from exc
+
+
 def read_watermark(since: str | None) -> datetime | None:
     """Return the extraction start point as a UTC-aware datetime.
 
@@ -18,19 +31,21 @@ def read_watermark(since: str | None) -> datetime | None:
     if since is not None:
         return datetime.fromisoformat(since).astimezone(timezone.utc)
 
-    if not _WATERMARK_PATH.exists():
+    stored = _read_stored_watermark()
+    if stored is None:
         console.print(
             "[yellow]No .watermark found — processing all records (first run)[/yellow]"
         )
-        return None
+    return stored
 
-    try:
-        content = _WATERMARK_PATH.read_text().strip()
-        return datetime.fromisoformat(content).astimezone(timezone.utc)
-    except (ValueError, OSError) as exc:
-        raise RuntimeError(
-            "Corrupted .watermark file — delete it to start fresh"
-        ) from exc
+
+def check_since_override(since: str) -> bool:
+    """Return True if `since` predates the stored watermark (duplicate-record risk)."""
+    since_dt = datetime.fromisoformat(since).astimezone(timezone.utc)
+    stored = _read_stored_watermark()
+    if stored is None:
+        return False
+    return since_dt < stored
 
 
 def write_watermark(ts: datetime) -> None:
