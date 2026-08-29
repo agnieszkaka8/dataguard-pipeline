@@ -1,7 +1,7 @@
 ---
 change_id: testing-critical-path-regression-guard
 title: Testing critical path regression guard
-status: implementing
+status: implemented
 created: 2026-08-29
 updated: 2026-08-29
 archived_at: null

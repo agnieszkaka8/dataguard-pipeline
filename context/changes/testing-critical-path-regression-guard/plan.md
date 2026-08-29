@@ -312,12 +312,12 @@ None — no existing data, runtime behavior, or CI configuration changes.
 
 #### Automated
 
-- [x] 2.1 New file passes: `uv run pytest tests/test_no_leakage_regression.py -v`
-- [x] 2.2 Full suite still passes: `uv run pytest -m "not integration"`
-- [x] 2.3 Type checking passes: `uv run mypy dataguard/`
-- [x] 2.4 Lint and format clean: `uv run ruff format --check . && uv run ruff check .`
+- [x] 2.1 New file passes: `uv run pytest tests/test_no_leakage_regression.py -v` — 8f50472
+- [x] 2.2 Full suite still passes: `uv run pytest -m "not integration"` — 8f50472
+- [x] 2.3 Type checking passes: `uv run mypy dataguard/` — 8f50472
+- [x] 2.4 Lint and format clean: `uv run ruff format --check . && uv run ruff check .` — 8f50472
 
 #### Manual
 
-- [x] 2.5 Introducing a `str(exc)` leak in `cli.py` makes the new test fail, then revert
-- [x] 2.6 Every console.print call site named in test-plan §2 row #3 is exercised by a scenario
+- [x] 2.5 Introducing a `str(exc)` leak in `cli.py` makes the new test fail, then revert — 8f50472
+- [x] 2.6 Every console.print call site named in test-plan §2 row #3 is exercised by a scenario — 8f50472
