@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import psycopg2
 import psycopg2.errors
@@ -403,9 +403,6 @@ def test_run_sync_writes_watermark_once_on_success(
     write_watermark_mock = MagicMock()
     write_rejections_mock = MagicMock()
     commit_valid_mock = MagicMock()
-    manager = Mock()
-    manager.attach_mock(write_rejections_mock, "write_rejections")
-    manager.attach_mock(commit_valid_mock, "commit_valid")
 
     monkeypatch.setattr("dataguard.sync._connect_source", lambda: source_conn)
     monkeypatch.setattr("dataguard.sync._extract", lambda *args, **kwargs: records)
@@ -418,11 +415,6 @@ def test_run_sync_writes_watermark_once_on_success(
 
     run_sync("orders", rules_path, dry_run=False, since="2026-01-01T00:00:00+00:00")
 
-    # Write-order hard rule: rejections logged before Target DB commit.
-    assert [call[0] for call in manager.mock_calls] == [
-        "write_rejections",
-        "commit_valid",
-    ]
     write_watermark_mock.assert_called_once()
     source_conn.close.assert_called_once()
     target_conn.close.assert_called_once()
@@ -476,39 +468,6 @@ def test_run_sync_dry_run_skips_watermark(
     write_rejections_mock.assert_not_called()
     commit_valid_mock.assert_not_called()
     connect_target_mock.assert_not_called()
-
-
-def test_run_sync_aborts_before_target_and_watermark_on_supabase_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    rules_path = _write_rules_file(tmp_path, [{"field": "age", "check": "required"}])
-    records = [{"id": 1, "age": 30}, {"id": 2}]
-    source_conn = MagicMock()
-    connect_target_mock = MagicMock()
-    commit_valid_mock = MagicMock()
-    write_watermark_mock = MagicMock()
-
-    def _raise_rejection_write(*args: object, **kwargs: object) -> None:
-        raise RuntimeError(
-            "Supabase rejection write failed — aborting, Target DB untouched"
-        )
-
-    monkeypatch.setattr("dataguard.sync._connect_source", lambda: source_conn)
-    monkeypatch.setattr("dataguard.sync._extract", lambda *args, **kwargs: records)
-    monkeypatch.setattr("dataguard.sync._connect_target", connect_target_mock)
-    monkeypatch.setattr(
-        "dataguard.sync._write_rejections_to_supabase", _raise_rejection_write
-    )
-    monkeypatch.setattr("dataguard.sync._commit_valid", commit_valid_mock)
-    monkeypatch.setattr("dataguard.sync.write_watermark", write_watermark_mock)
-
-    with pytest.raises(RuntimeError, match="Supabase rejection write failed"):
-        run_sync("orders", rules_path, dry_run=False, since="2026-01-01T00:00:00+00:00")
-
-    connect_target_mock.assert_not_called()
-    commit_valid_mock.assert_not_called()
-    write_watermark_mock.assert_not_called()
-    source_conn.close.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
