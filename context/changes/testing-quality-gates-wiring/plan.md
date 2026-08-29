@@ -113,8 +113,8 @@ None — purely additive; no existing workflow, code, or config is modified.
 #### Automated
 
 - [x] 1.1 Workflow YAML is syntactically valid
-- [ ] 1.2 Clean push reports ruff, mypy, and pytest all passed
-- [ ] 1.3 Pytest step reports "84 passed, 1 deselected" matching local baseline
+- [x] 1.2 Clean push reports ruff, mypy, and pytest all passed
+- [x] 1.3 Pytest step reports "84 passed, 1 deselected" matching local baseline
 
 #### Manual
 

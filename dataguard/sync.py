@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 from datetime import datetime, timezone
@@ -16,7 +17,7 @@ from dataguard.rules import evaluate, validate_rules_schema
 from dataguard.watermark import read_watermark, write_watermark
 
 console = Console(no_color=bool(os.environ.get("NO_COLOR")))
-
+print(jakas_zmienna_ktorej_nie_ma)
 
 def run_sync(
     table: str,
