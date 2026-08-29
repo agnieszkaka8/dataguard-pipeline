@@ -331,7 +331,7 @@ existing `.env`/`.watermark` entries.
 
 #### Automated
 
-- [ ] 1.1 Unit tests pass: `uv run pytest tests/test_auth.py -v`
+- [x] 1.1 Unit tests pass: `uv run pytest tests/test_auth.py -v`
 - [x] 1.2 Type checking passes: `uv run mypy dataguard/` — 29bab9d
 - [x] 1.3 Linting passes: `uv run ruff check dataguard/` — 29bab9d
 
@@ -344,9 +344,9 @@ existing `.env`/`.watermark` entries.
 
 #### Automated
 
-- [x] 2.1 Unit tests pass: `uv run pytest tests/test_cli.py -v`
-- [x] 2.2 Type checking passes: `uv run mypy dataguard/`
-- [x] 2.3 Linting passes: `uv run ruff check dataguard/`
+- [x] 2.1 Unit tests pass: `uv run pytest tests/test_cli.py -v` — f011c56
+- [x] 2.2 Type checking passes: `uv run mypy dataguard/` — f011c56
+- [x] 2.3 Linting passes: `uv run ruff check dataguard/` — f011c56
 
 #### Manual
 
@@ -359,9 +359,9 @@ existing `.env`/`.watermark` entries.
 
 #### Automated
 
-- [ ] 3.1 Full test suite passes: `uv run pytest`
-- [ ] 3.2 Type checking passes: `uv run mypy dataguard/`
-- [ ] 3.3 Linting passes: `uv run ruff check dataguard/`
+- [x] 3.1 Full test suite passes: `uv run pytest`
+- [x] 3.2 Type checking passes: `uv run mypy dataguard/`
+- [x] 3.3 Linting passes: `uv run ruff check dataguard/`
 
 #### Manual
 
