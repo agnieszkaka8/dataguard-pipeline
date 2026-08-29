@@ -6,6 +6,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from dataguard import auth
 from dataguard.env_check import env_check
 from dataguard.models import Outcome
 from dataguard.sync import run_sync
@@ -14,10 +15,35 @@ from dataguard.watermark import check_since_override
 app = typer.Typer(no_args_is_help=True)
 console = Console(no_color=bool(os.environ.get("NO_COLOR")))
 
+_AUTH_ERROR_MESSAGES: dict[str, str] = {
+    "invalid_credentials": "invalid email or password",
+    "network": "could not reach Supabase — check your network connection",
+    "session_revoked": "your session was revoked — please log in again",
+}
+
 
 @app.callback()
-def _root() -> None:
+def _root(ctx: typer.Context) -> None:
     """DataGuard — validate and sync records between databases."""
+    if ctx.invoked_subcommand == "logout":
+        # logout must work even with a broken/revoked session or missing env —
+        # it is the only escape hatch from an unusable auth state.
+        return
+    env_check()
+    try:
+        auth.ensure_session()
+    except auth.AuthError as exc:
+        console.print(
+            f"[red]Authentication failed:[/red] {_AUTH_ERROR_MESSAGES[exc.reason]}"
+        )
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def logout() -> None:
+    """Clear the cached Supabase Auth session."""
+    auth.clear_session()
+    console.print("[green]Logged out.[/green] Session cache cleared.")
 
 
 @app.command()
@@ -35,7 +61,6 @@ def sync(
     ),
 ) -> None:
     """Sync records from Source DB to Target DB with validation."""
-    env_check()
     _guard_since_override(since)
 
     if not rules.exists():
