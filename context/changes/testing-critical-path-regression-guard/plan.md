@@ -298,26 +298,26 @@ None — no existing data, runtime behavior, or CI configuration changes.
 
 #### Automated
 
-- [x] 1.1 New file passes: `uv run pytest tests/test_write_order_regression.py -v`
-- [x] 1.2 Full suite still passes: `uv run pytest -m "not integration"`
-- [x] 1.3 Type checking passes: `uv run mypy dataguard/`
-- [x] 1.4 Lint and format clean: `uv run ruff format --check . && uv run ruff check .`
+- [x] 1.1 New file passes: `uv run pytest tests/test_write_order_regression.py -v` — 1acbd18
+- [x] 1.2 Full suite still passes: `uv run pytest -m "not integration"` — 1acbd18
+- [x] 1.3 Type checking passes: `uv run mypy dataguard/` — 1acbd18
+- [x] 1.4 Lint and format clean: `uv run ruff format --check . && uv run ruff check .` — 1acbd18
 
 #### Manual
 
-- [x] 1.5 Swapping the write-order call blocks makes the new test fail with a clear message, then revert
-- [x] 1.6 `test_sync.py`'s watermark test no longer references `manager`/`attach_mock`
+- [x] 1.5 Swapping the write-order call blocks makes the new test fail with a clear message, then revert — 1acbd18
+- [x] 1.6 `test_sync.py`'s watermark test no longer references `manager`/`attach_mock` — 1acbd18
 
 ### Phase 2: No-leakage regression guard
 
 #### Automated
 
-- [ ] 2.1 New file passes: `uv run pytest tests/test_no_leakage_regression.py -v`
-- [ ] 2.2 Full suite still passes: `uv run pytest -m "not integration"`
-- [ ] 2.3 Type checking passes: `uv run mypy dataguard/`
-- [ ] 2.4 Lint and format clean: `uv run ruff format --check . && uv run ruff check .`
+- [x] 2.1 New file passes: `uv run pytest tests/test_no_leakage_regression.py -v`
+- [x] 2.2 Full suite still passes: `uv run pytest -m "not integration"`
+- [x] 2.3 Type checking passes: `uv run mypy dataguard/`
+- [x] 2.4 Lint and format clean: `uv run ruff format --check . && uv run ruff check .`
 
 #### Manual
 
-- [ ] 2.5 Introducing a `str(exc)` leak in `cli.py` makes the new test fail, then revert
-- [ ] 2.6 Every console.print call site named in test-plan §2 row #3 is exercised by a scenario
+- [x] 2.5 Introducing a `str(exc)` leak in `cli.py` makes the new test fail, then revert
+- [x] 2.6 Every console.print call site named in test-plan §2 row #3 is exercised by a scenario
