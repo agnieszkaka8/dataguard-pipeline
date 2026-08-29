@@ -1,0 +1,48 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  quality-gates:
+    runs-on: ubuntu-latest
+
+    env:
+      NO_COLOR: "1"   # AGENTS.md hard rule: CI output must be machine-readable
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv + Python 3.12
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Lint (ruff)
+        id: ruff
+        continue-on-error: true
+        run: uv run ruff check .
+
+      - name: Type check (mypy)
+        id: mypy
+        continue-on-error: true
+        run: uv run mypy dataguard/
+
+      - name: Test (pytest)
+        id: pytest
+        continue-on-error: true
+        run: uv run pytest -m "not integration"
+
+      - name: Check gate results
+        if: always()
+        run: |
+          if [ "${{ steps.ruff.outcome }}" = "failure" ] || [ "${{ steps.mypy.outcome }}" = "failure" ] || [ "${{ steps.pytest.outcome }}" = "failure" ]; then
+            echo "::error::One or more quality gates failed (ruff=${{ steps.ruff.outcome }}, mypy=${{ steps.mypy.outcome }}, pytest=${{ steps.pytest.outcome }})"
+            exit 1
+          fi
