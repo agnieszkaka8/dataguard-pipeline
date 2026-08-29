@@ -118,6 +118,6 @@ None — purely additive; no existing workflow, code, or config is modified.
 
 #### Manual
 
-- [ ] 1.4 Deliberate ruff violation causes an attributable CI failure
-- [ ] 1.5 Revert restores a green check
-- [ ] 1.6 New check marked required in GitHub branch protection for `main`
+- [x] 1.4 Deliberate ruff violation causes an attributable CI failure
+- [x] 1.5 Revert restores a green check
+- [x] 1.6 New check marked required in GitHub branch protection for `main`

@@ -4,12 +4,21 @@
     console output, error messages, or local log files.
 
 A single sentinel value is embedded in fake connection strings and in a
-record field, then every console.print call (across cli.py, sync.py,
-watermark.py) and every raised exception's str() is swept for it, across
-the success path, dry-run, and every failure branch. A generic sweep
-(rather than per-call-site assertions) so any future console.print or
-exception message added anywhere in those three modules is automatically
-covered — see context/foundation/test-plan.md §2 Risk #3 and §3 Phase 2.
+record field, then every console.print call across cli.py, sync.py, and
+watermark.py is swept for it, across the success path, dry-run, and every
+failure branch. A generic sweep (rather than per-call-site assertions) so
+any future console.print added anywhere in those three modules is
+automatically covered — see context/foundation/test-plan.md §2 Risk #3
+and §3 Phase 2.
+
+Scope note: this sweep covers console output only, not raised exception
+objects. cli.sync()'s except block never re-raises with `from exc`, so
+the exception the tests observe (typer.Exit) carries no message to check
+— the console sweep is the actual leak surface at this boundary. The
+sweep also only inspects string-representable console.print arguments —
+a non-string Rich renderable (Table/Panel/Text) would not be scanned for
+the sentinel. Today's only such call site (`_print_summary`'s Table)
+holds only counts, so this is a dormant, not live, gap.
 """
 
 import json
@@ -44,9 +53,8 @@ def _capture_console_prints(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     return captured
 
 
-def _assert_no_leak(captured: list[str], *exc_chain: BaseException | None) -> None:
-    haystacks = list(captured) + [str(exc) for exc in exc_chain if exc is not None]
-    for text in haystacks:
+def _assert_no_leak(captured: list[str]) -> None:
+    for text in captured:
         assert SENTINEL not in text, f"no-leakage hard rule violated: {text!r}"
 
 
@@ -93,6 +101,7 @@ def test_no_leak_on_target_connect_failure(
     captured = _capture_console_prints(monkeypatch)
     rules_path = _write_rules_file(tmp_path, [{"field": "age", "check": "required"}])
     record = {"id": 1, "age": 30, "email": f"{SENTINEL}@example.com"}
+    monkeypatch.setattr("dataguard.watermark._WATERMARK_PATH", tmp_path / ".watermark")
     monkeypatch.setattr("dataguard.sync._extract", lambda *a, **k: [record])
 
     source_conn = MagicMock()
@@ -126,6 +135,7 @@ def test_no_leak_on_supabase_connect_failure(
     rules_path = _write_rules_file(tmp_path, [{"field": "age", "check": "required"}])
     record = {"id": 1, "email": f"{SENTINEL}@example.com"}  # missing age -> invalid
 
+    monkeypatch.setattr("dataguard.watermark._WATERMARK_PATH", tmp_path / ".watermark")
     monkeypatch.setattr("dataguard.sync._connect_source", lambda: MagicMock())
     monkeypatch.setattr("dataguard.sync._extract", lambda *a, **k: [record])
 
@@ -154,6 +164,7 @@ def test_no_leak_on_supabase_write_failure(
     rules_path = _write_rules_file(tmp_path, [{"field": "age", "check": "required"}])
     record = {"id": 1, "email": f"{SENTINEL}@example.com"}  # missing age -> invalid
 
+    monkeypatch.setattr("dataguard.watermark._WATERMARK_PATH", tmp_path / ".watermark")
     monkeypatch.setattr("dataguard.sync._connect_source", lambda: MagicMock())
     monkeypatch.setattr("dataguard.sync._extract", lambda *a, **k: [record])
 
@@ -183,6 +194,7 @@ def test_no_leak_on_target_write_failure(
     rules_path = _write_rules_file(tmp_path, [{"field": "age", "check": "required"}])
     record = {"id": 1, "age": 30, "email": f"{SENTINEL}@example.com"}
 
+    monkeypatch.setattr("dataguard.watermark._WATERMARK_PATH", tmp_path / ".watermark")
     monkeypatch.setattr("dataguard.sync._connect_source", lambda: MagicMock())
     monkeypatch.setattr("dataguard.sync._extract", lambda *a, **k: [record])
 

@@ -1,7 +1,7 @@
 ---
 change_id: testing-quality-gates-wiring
 title: Wire quality gates (pytest, mypy, ruff) into CI
-status: implementing
+status: complete
 created: 2026-08-22
 updated: 2026-08-29
 archived_at: null
