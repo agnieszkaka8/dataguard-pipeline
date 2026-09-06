@@ -21,3 +21,11 @@ class Session:
     access_token: str
     refresh_token: str
     expires_at: int
+
+
+@dataclass
+class RuleSet:
+    name: str
+    table_name: str
+    rules: list[dict[str, Any]]
+    updated_at: str
