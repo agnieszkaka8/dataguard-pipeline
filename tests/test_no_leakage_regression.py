@@ -176,6 +176,7 @@ def test_no_leak_on_source_connect_failure(
         cli.sync(
             table="orders",
             rules=rules_path,
+            rule_set=None,
             dry_run=False,
             since=None,
             timestamp_col="created_at",
@@ -209,6 +210,7 @@ def test_no_leak_on_target_connect_failure(
         cli.sync(
             table="orders",
             rules=rules_path,
+            rule_set=None,
             dry_run=False,
             since=None,
             timestamp_col="created_at",
@@ -238,6 +240,7 @@ def test_no_leak_on_supabase_connect_failure(
         cli.sync(
             table="orders",
             rules=rules_path,
+            rule_set=None,
             dry_run=False,
             since=None,
             timestamp_col="created_at",
@@ -268,6 +271,7 @@ def test_no_leak_on_supabase_write_failure(
         cli.sync(
             table="orders",
             rules=rules_path,
+            rule_set=None,
             dry_run=False,
             since=None,
             timestamp_col="created_at",
@@ -300,6 +304,7 @@ def test_no_leak_on_target_write_failure(
         cli.sync(
             table="orders",
             rules=rules_path,
+            rule_set=None,
             dry_run=False,
             since=None,
             timestamp_col="created_at",
@@ -324,6 +329,7 @@ def test_no_leak_on_corrupted_watermark_failure(
         cli.sync(
             table="orders",
             rules=rules_path,
+            rule_set=None,
             dry_run=False,
             since=None,
             timestamp_col="created_at",
@@ -349,6 +355,7 @@ def test_no_leak_on_rules_load_failure(
         cli.sync(
             table="orders",
             rules=rules_path,
+            rule_set=None,
             dry_run=False,
             since=None,
             timestamp_col="created_at",
@@ -368,6 +375,7 @@ def test_no_leak_on_missing_rules_file(
         cli.sync(
             table="orders",
             rules=missing_rules,
+            rule_set=None,
             dry_run=False,
             since=None,
             timestamp_col="created_at",
@@ -387,6 +395,7 @@ def test_no_leak_on_invalid_since_timestamp(
         cli.sync(
             table="orders",
             rules=rules_path,
+            rule_set=None,
             dry_run=False,
             since="not-a-timestamp",
             timestamp_col="created_at",
@@ -434,6 +443,7 @@ def test_no_leak_on_success_path_console_output(
     cli.sync(
         table="orders",
         rules=rules_path,
+        rule_set=None,
         dry_run=False,
         since=None,
         timestamp_col="created_at",
@@ -457,6 +467,7 @@ def test_no_leak_on_dry_run_console_output(
     cli.sync(
         table="orders",
         rules=rules_path,
+        rule_set=None,
         dry_run=True,
         since=None,
         timestamp_col="created_at",

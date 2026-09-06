@@ -416,8 +416,8 @@ standalone.
 #### Automated
 
 - [ ] 1.1 Unit tests pass: `uv run pytest tests/test_rule_sets.py -v`
-- [x] 1.2 Type checking passes: `uv run mypy dataguard/`
-- [x] 1.3 Linting passes: `uv run ruff check dataguard/`
+- [x] 1.2 Type checking passes: `uv run mypy dataguard/` — 15e117a
+- [x] 1.3 Linting passes: `uv run ruff check dataguard/` — 15e117a
 
 #### Manual
 
@@ -427,9 +427,9 @@ standalone.
 
 #### Automated
 
-- [ ] 2.1 Unit tests pass: `uv run pytest tests/test_cli.py tests/test_sync.py -v`
-- [ ] 2.2 Type checking passes: `uv run mypy dataguard/`
-- [ ] 2.3 Linting passes: `uv run ruff check dataguard/`
+- [x] 2.1 Unit tests pass: `uv run pytest tests/test_cli.py tests/test_sync.py -v`
+- [x] 2.2 Type checking passes: `uv run mypy dataguard/`
+- [x] 2.3 Linting passes: `uv run ruff check dataguard/`
 
 #### Manual
 
