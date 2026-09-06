@@ -31,7 +31,7 @@ A data engineer responsible for maintaining ETL/ELT pipelines between two relati
 
 ### Primary
 
-A Data Engineer can run `dataguard sync --table <table> --rules <rules.json>` from the terminal. The CLI connects to Source DB, Target DB, and Supabase; streams real-time status to the console; validates each extracted record against the rules file; writes only valid records to Target DB; pushes every invalid record to the Supabase rejection log with the exact failure reason attached; and prints a color-coded summary (Total / Passed / Failed) at the end of the run — all within a single terminal session.
+A Data Engineer can run `dataguard sync --table <table> --rules <rules.json>` from the terminal. The CLI authenticates the engineer via Supabase Auth (prompting for interactive login if no valid cached session exists), then connects to Source DB, Target DB, and Supabase; streams real-time status to the console; validates each extracted record against the rules file; writes only valid records to Target DB; pushes every invalid record to the Supabase rejection log with the exact failure reason attached; and prints a color-coded summary (Total / Passed / Failed) at the end of the run — all within a single terminal session.
 
 ### Secondary
 
@@ -86,11 +86,19 @@ Dry-run mode: the engineer can invoke `dataguard sync --dry-run` to run extracti
 - FR-008: Data Engineer can override the automatic watermark by passing `--since <timestamp>` to manually set the extraction start point for testing or recovery. Priority: nice-to-have
   > Socrates: Counter-argument considered: "a wrong --since timestamp re-processes already-transferred records and causes duplicates in Target DB." Resolution: kept; the tool will print a prominent warning when --since predates the existing watermark, requiring explicit acknowledgment before proceeding. The duplication risk is owned by the engineer.
 
+### Authentication
+
+- FR-009: Data Engineer must authenticate with an individual Supabase Auth account before any `dataguard` command executes (sync and dry-run alike); the CLI blocks execution until a valid session is established, prompting for interactive login on first use or after expiry. Priority: must-have
+  > Socrates: Counter-argument considered: "gating dry-run behind login adds friction to local rules-file iteration, which was previously frictionless." Resolution: kept; per-engineer identity is the point of this change, and dry-run's safety value (no writes) is independent of who is running it. This supersedes the original §Access Control model of "no login, no session, no token."
+
+- FR-010: Data Engineer's Supabase Auth session is cached locally after a successful login and reused across subsequent runs until it expires, avoiding repeated interactive prompts. Priority: must-have
+  > Socrates: Counter-argument considered: "a cached session token on disk is a new credential-leakage surface the original design didn't have." Resolution: kept; the cached session artifact is subject to the same no-leakage guarantee as connection strings (see §Non-Functional Requirements) and must never be printed to console, logs, or error messages.
+
 ## Non-Functional Requirements
 
 - **Throughput**: A sync run processing up to 10,000 records completes in user-perceivable time (target: under 60 seconds under normal network and DB conditions). Runs processing fewer records complete proportionally faster.
 - **Exit behavior**: The tool exits with a non-zero status code on any failure — connection error, validation abort, or Supabase write failure. A shell script or CI pipeline can branch on the exit code without parsing console output.
-- **Credential and payload privacy**: Connection strings, credentials, and raw record field values never appear in console output, local log files, or error messages. Rejected records and their field values are written only to the designated Supabase rejection log.
+- **Credential and payload privacy**: Connection strings, credentials, cached Supabase Auth session tokens, and raw record field values never appear in console output, local log files, or error messages. Rejected records and their field values are written only to the designated Supabase rejection log.
 - **Retention**: The Supabase rejection log is append-only with no TTL enforced by the tool; cleanup is the engineer's responsibility.
 
 ## Business Logic
@@ -105,7 +113,9 @@ DataGuard enforces a strict "Validation-First" contract, ensuring that the Targe
 
 ## Access Control
 
-Single user role; no authentication system. All Data Engineers at the organization share the same access level. Access is controlled by possession of a local config file (e.g., `.env` or `dataguard.toml`) that holds source and target database connection strings. The tool itself enforces no login, no session, no token — whoever can read the config file can run the full pipeline.
+Per-engineer authentication via Supabase Auth (supersedes the original MVP model below). Each Data Engineer has an individual Supabase Auth account and must be logged in — via interactive login on first use or after session expiry — to run any `dataguard` command. The CLI caches the resulting session locally (see FR-010) and reuses it until it expires. Login identifies which engineer ran a given sync, giving per-user attribution that the original shared-secret model did not provide. The local config file (`.env`) still holds Source DB, Target DB, and Supabase project connection details, but no longer functions as the sole access gate.
+
+> Original MVP model (superseded 2026-08-29): single user role, no authentication system — all Data Engineers shared the same access level, controlled purely by possession of the local `.env` file, with no login, session, or token enforced by the tool.
 
 ## Non-Goals
 
@@ -121,3 +131,5 @@ Single user role; no authentication system. All Data Engineers at the organizati
 3. **Source DB timestamp column requirement**: FR-007 (incremental sync) assumes the Source DB table has a reliable timestamp column for watermark-based extraction. The tool's behavior when no such column exists (hard error, full-table fallback, or user-configurable) is unresolved.
 4. **Acceptance criteria for US-01**: The user story has a Given/When/Then block but no explicit acceptance criteria with measurable thresholds. To be defined during implementation planning.
 5. **target_scale.qps and target_scale.data_volume**: Not captured during shaping. For a CLI batch tool, qps is not a meaningful metric (no concurrent request serving). data_volume is implied as small (≤10,000 records per run per throughput NFR) but not explicitly set as a frontmatter value. Confirm or set explicitly.
+6. **Per-engineer Supabase Auth account provisioning**: FR-009/FR-010 require each Data Engineer to have an individual Supabase Auth account, but who creates/removes these accounts (Supabase dashboard, invite flow, self-signup) is not defined. Resolution needed before the `auth-supabase-login` change can be fully specified.
+7. **Session expiry and re-auth UX**: FR-010 caches the Supabase Auth session locally but does not define the session lifetime, what a "cached session" artifact looks like on disk, or the exact re-prompt behavior on expiry mid-run vs. at invocation start. To be decided during implementation planning.

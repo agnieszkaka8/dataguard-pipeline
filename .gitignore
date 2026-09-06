@@ -12,6 +12,7 @@ wheels/
 # Runtime state — never commit
 .env
 .watermark
+.dataguard_session
 
 # Tool caches
 .mypy_cache/

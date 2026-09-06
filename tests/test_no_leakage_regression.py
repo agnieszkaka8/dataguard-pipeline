@@ -22,16 +22,105 @@ holds only counts, so this is a dormant, not live, gap.
 """
 
 import json
+import time
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import psycopg2
 import pytest
 import typer
+from supabase_auth.errors import AuthApiError
 
-from dataguard import cli
+from dataguard import auth, cli
 
 SENTINEL = "SENTINEL-9f3e7c1a"
+
+
+# ---------------------------------------------------------------------------
+# Auth surface — login prompt, failures, and the on-disk session cache must
+# never leak the password, access token, or refresh token.
+# ---------------------------------------------------------------------------
+
+
+def test_no_leak_password_on_login_prompt_and_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("dataguard.auth._SESSION_PATH", tmp_path / ".dataguard_session")
+    captured = _capture_console_prints(monkeypatch)
+    password = f"pw-{SENTINEL}"
+
+    monkeypatch.setattr(
+        "dataguard.auth.typer.prompt",
+        lambda text, hide_input=False: (
+            password if hide_input else "engineer@example.com"
+        ),
+    )
+
+    def _raise(credentials: dict[str, str]) -> None:
+        raise AuthApiError(
+            f"invalid credentials for {credentials['email']}",
+            400,
+            "invalid_credentials",
+        )
+
+    client = MagicMock()
+    client.auth.sign_in_with_password.side_effect = _raise
+    monkeypatch.setattr("dataguard.auth._client", lambda: client)
+
+    with pytest.raises(auth.AuthError):
+        auth.ensure_session()
+
+    _assert_no_leak(captured)
+
+
+def test_no_leak_password_and_tokens_in_cli_auth_failure_message(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _set_fake_env(monkeypatch)
+    captured = _capture_console_prints(monkeypatch)
+    monkeypatch.setattr("dataguard.auth._SESSION_PATH", tmp_path / ".dataguard_session")
+    monkeypatch.setattr(
+        "dataguard.cli.auth.ensure_session",
+        MagicMock(side_effect=auth.AuthError("invalid_credentials")),
+    )
+
+    ctx = SimpleNamespace(invoked_subcommand="sync")
+    with pytest.raises(typer.Exit):
+        cli._root(ctx)
+
+    _assert_no_leak(captured)
+
+
+def test_no_leak_session_cache_file_has_no_plaintext_password(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    session_path = tmp_path / ".dataguard_session"
+    monkeypatch.setattr("dataguard.auth._SESSION_PATH", session_path)
+    password = f"pw-{SENTINEL}"
+
+    monkeypatch.setattr(
+        "dataguard.auth.typer.prompt",
+        lambda text, hide_input=False: (
+            password if hide_input else "engineer@example.com"
+        ),
+    )
+
+    future = int(time.time()) + 3600
+    fake_sdk_session = SimpleNamespace(
+        access_token="at", refresh_token="rt", expires_in=3600, expires_at=future
+    )
+    client = MagicMock()
+    client.auth.sign_in_with_password.return_value = SimpleNamespace(
+        session=fake_sdk_session
+    )
+    monkeypatch.setattr("dataguard.auth._client", lambda: client)
+
+    auth.ensure_session()
+
+    contents = session_path.read_text()
+    assert password not in contents
+    assert SENTINEL not in contents
 
 
 def _set_fake_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -50,6 +139,7 @@ def _capture_console_prints(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     monkeypatch.setattr("dataguard.cli.console.print", _record)
     monkeypatch.setattr("dataguard.sync.console.print", _record)
     monkeypatch.setattr("dataguard.watermark.console.print", _record)
+    monkeypatch.setattr("dataguard.auth.console.print", _record)
     return captured
 
 

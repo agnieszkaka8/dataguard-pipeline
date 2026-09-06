@@ -14,3 +14,10 @@ class RecordResult:
     row_id: Any
     outcome: Outcome
     reason: str | None = None
+
+
+@dataclass
+class Session:
+    access_token: str
+    refresh_token: str
+    expires_at: int
