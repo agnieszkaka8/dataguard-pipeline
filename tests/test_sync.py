@@ -7,7 +7,7 @@ import psycopg2
 import psycopg2.errors
 import pytest
 
-from dataguard.models import Outcome, RecordResult
+from dataguard.models import Outcome, RecordResult, RuleSet
 from dataguard.sync import (
     _classify,
     _commit_valid,
@@ -16,6 +16,7 @@ from dataguard.sync import (
     _connect_target,
     _extract,
     _load_rules,
+    _resolve_rules,
     _write_rejections_to_supabase,
     run_sync,
 )
@@ -145,6 +146,56 @@ def test_load_rules_real_orders_json_is_valid() -> None:
     assert isinstance(result, list)
     assert len(result) > 0
     assert {r["field"] for r in result} == {"id", "customer_email", "amount", "status"}
+
+
+# ---------------------------------------------------------------------------
+# _resolve_rules
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_rules_uses_local_file_when_rules_path_given(tmp_path: Path) -> None:
+    rules_path = tmp_path / "rules.json"
+    rules_path.write_text('{"rules": [{"field": "age", "check": "required"}]}')
+    result = _resolve_rules("orders", rules_path, None)
+    assert result == [{"field": "age", "check": "required"}]
+
+
+def test_resolve_rules_fetches_named_rule_set(monkeypatch: pytest.MonkeyPatch) -> None:
+    rule_set = RuleSet(
+        name="orders-v2",
+        table_name="orders",
+        rules=[{"field": "id", "check": "required"}],
+        updated_at="x",
+    )
+    monkeypatch.setattr("dataguard.sync.rule_sets.get_rule_set", lambda name: rule_set)
+    result = _resolve_rules("orders", None, "orders-v2")
+    assert result == [{"field": "id", "check": "required"}]
+
+
+def test_resolve_rules_table_mismatch_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    rule_set = RuleSet(name="orders-v2", table_name="orders", rules=[], updated_at="x")
+    monkeypatch.setattr("dataguard.sync.rule_sets.get_rule_set", lambda name: rule_set)
+    with pytest.raises(RuntimeError, match="scoped to table 'orders', not 'users'"):
+        _resolve_rules("users", None, "orders-v2")
+
+
+def test_resolve_rules_reraises_schema_error_for_malformed_rule_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    rule_set = RuleSet(
+        name="orders-v2",
+        table_name="orders",
+        rules=[{"field": "id", "check": "nope"}],
+        updated_at="x",
+    )
+    monkeypatch.setattr("dataguard.sync.rule_sets.get_rule_set", lambda name: rule_set)
+    with pytest.raises(RuntimeError, match="unknown check 'nope'"):
+        _resolve_rules("orders", None, "orders-v2")
+
+
+def test_resolve_rules_neither_given_raises() -> None:
+    with pytest.raises(RuntimeError, match="Either rules_path or rule_set_name"):
+        _resolve_rules("orders", None, None)
 
 
 # ---------------------------------------------------------------------------

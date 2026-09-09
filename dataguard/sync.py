@@ -11,6 +11,7 @@ from psycopg2 import sql
 from rich.console import Console
 from supabase import Client, create_client
 
+from dataguard import rule_sets
 from dataguard.models import Outcome, RecordResult
 from dataguard.rules import evaluate, validate_rules_schema
 from dataguard.watermark import read_watermark, write_watermark
@@ -20,10 +21,11 @@ console = Console(no_color=bool(os.environ.get("NO_COLOR")))
 
 def run_sync(
     table: str,
-    rules_path: Path,
-    dry_run: bool,
-    since: str | None,
+    rules_path: Path | None = None,
+    dry_run: bool = False,
+    since: str | None = None,
     timestamp_col: str = "created_at",
+    rule_set_name: str | None = None,
 ) -> list[RecordResult]:
     """Execute the sync pipeline and return per-record results.
 
@@ -33,7 +35,7 @@ def run_sync(
     _source_conn: psycopg2.extensions.connection | None = None
     _target_conn: psycopg2.extensions.connection | None = None
     try:
-        rules = _load_rules(rules_path)
+        rules = _resolve_rules(table, rules_path, rule_set_name)
 
         console.print("[bold]Connecting[/bold] to Source DB…")
         _source_conn = _connect_source()
@@ -130,6 +132,24 @@ def _load_rules(path: Path) -> list[dict[str, Any]]:
     except json.JSONDecodeError as exc:
         raise RuntimeError("Rules file is not valid JSON") from exc
     return validate_rules_schema(rules_data)
+
+
+def _resolve_rules(
+    table: str, rules_path: Path | None, rule_set_name: str | None
+) -> list[dict[str, Any]]:
+    """Load rules from a local file or a named Supabase rule set (exactly one)."""
+    if rules_path is not None:
+        return _load_rules(rules_path)
+    if rule_set_name is None:
+        raise RuntimeError("Either rules_path or rule_set_name must be provided")
+
+    rule_set = rule_sets.get_rule_set(rule_set_name)
+    if rule_set.table_name != table:
+        raise RuntimeError(
+            f"Rule set '{rule_set_name}' is scoped to table "
+            f"'{rule_set.table_name}', not '{table}'"
+        )
+    return validate_rules_schema({"rules": rule_set.rules})
 
 
 def _classify(row: dict[str, Any], rules: list[dict[str, Any]]) -> RecordResult:

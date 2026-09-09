@@ -4,12 +4,12 @@
     console output, error messages, or local log files.
 
 A single sentinel value is embedded in fake connection strings and in a
-record field, then every console.print call across cli.py, sync.py, and
-watermark.py is swept for it, across the success path, dry-run, and every
-failure branch. A generic sweep (rather than per-call-site assertions) so
-any future console.print added anywhere in those three modules is
-automatically covered — see context/foundation/test-plan.md §2 Risk #3
-and §3 Phase 2.
+record field, then every console.print call across cli.py, sync.py,
+watermark.py, auth.py, and rule_sets.py is swept for it, across the
+success path, dry-run, and every failure branch. A generic sweep (rather
+than per-call-site assertions) so any future console.print added anywhere
+in those modules is automatically covered — see
+context/foundation/test-plan.md §2 Risk #3 and §3 Phase 2.
 
 Scope note: this sweep covers console output only, not raised exception
 objects. cli.sync()'s except block never re-raises with `from exc`, so
@@ -140,6 +140,7 @@ def _capture_console_prints(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     monkeypatch.setattr("dataguard.sync.console.print", _record)
     monkeypatch.setattr("dataguard.watermark.console.print", _record)
     monkeypatch.setattr("dataguard.auth.console.print", _record)
+    monkeypatch.setattr("dataguard.rule_sets.console.print", _record)
     return captured
 
 
@@ -176,6 +177,7 @@ def test_no_leak_on_source_connect_failure(
         cli.sync(
             table="orders",
             rules=rules_path,
+            rule_set=None,
             dry_run=False,
             since=None,
             timestamp_col="created_at",
@@ -209,6 +211,7 @@ def test_no_leak_on_target_connect_failure(
         cli.sync(
             table="orders",
             rules=rules_path,
+            rule_set=None,
             dry_run=False,
             since=None,
             timestamp_col="created_at",
@@ -238,6 +241,7 @@ def test_no_leak_on_supabase_connect_failure(
         cli.sync(
             table="orders",
             rules=rules_path,
+            rule_set=None,
             dry_run=False,
             since=None,
             timestamp_col="created_at",
@@ -268,6 +272,7 @@ def test_no_leak_on_supabase_write_failure(
         cli.sync(
             table="orders",
             rules=rules_path,
+            rule_set=None,
             dry_run=False,
             since=None,
             timestamp_col="created_at",
@@ -300,6 +305,7 @@ def test_no_leak_on_target_write_failure(
         cli.sync(
             table="orders",
             rules=rules_path,
+            rule_set=None,
             dry_run=False,
             since=None,
             timestamp_col="created_at",
@@ -324,6 +330,7 @@ def test_no_leak_on_corrupted_watermark_failure(
         cli.sync(
             table="orders",
             rules=rules_path,
+            rule_set=None,
             dry_run=False,
             since=None,
             timestamp_col="created_at",
@@ -349,6 +356,7 @@ def test_no_leak_on_rules_load_failure(
         cli.sync(
             table="orders",
             rules=rules_path,
+            rule_set=None,
             dry_run=False,
             since=None,
             timestamp_col="created_at",
@@ -368,6 +376,7 @@ def test_no_leak_on_missing_rules_file(
         cli.sync(
             table="orders",
             rules=missing_rules,
+            rule_set=None,
             dry_run=False,
             since=None,
             timestamp_col="created_at",
@@ -387,6 +396,7 @@ def test_no_leak_on_invalid_since_timestamp(
         cli.sync(
             table="orders",
             rules=rules_path,
+            rule_set=None,
             dry_run=False,
             since="not-a-timestamp",
             timestamp_col="created_at",
@@ -434,6 +444,7 @@ def test_no_leak_on_success_path_console_output(
     cli.sync(
         table="orders",
         rules=rules_path,
+        rule_set=None,
         dry_run=False,
         since=None,
         timestamp_col="created_at",
@@ -457,6 +468,7 @@ def test_no_leak_on_dry_run_console_output(
     cli.sync(
         table="orders",
         rules=rules_path,
+        rule_set=None,
         dry_run=True,
         since=None,
         timestamp_col="created_at",

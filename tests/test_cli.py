@@ -101,3 +101,179 @@ def test_guard_since_override_invalid_since_exits_cleanly(
             _guard_since_override("not-a-timestamp")
     print_mock.assert_called_once()
     assert "Invalid --since timestamp" in print_mock.call_args[0][0]
+
+
+# ---------------------------------------------------------------------------
+# sync — --rules / --rule-set mutual exclusivity
+# ---------------------------------------------------------------------------
+
+
+def test_sync_requires_exactly_one_of_rules_or_rule_set() -> None:
+    with patch("dataguard.cli.console.print") as print_mock:
+        with pytest.raises(typer.Exit) as exc_info:
+            cli.sync(
+                table="orders",
+                rules=None,
+                rule_set=None,
+                dry_run=False,
+                since=None,
+                timestamp_col="created_at",
+            )
+    assert exc_info.value.exit_code == 1
+    assert "Exactly one of" in print_mock.call_args[0][0]
+
+
+def test_sync_rejects_both_rules_and_rule_set(tmp_path: Path) -> None:
+    rules_path = tmp_path / "rules.json"
+    rules_path.write_text('{"rules": []}')
+    with patch("dataguard.cli.console.print") as print_mock:
+        with pytest.raises(typer.Exit) as exc_info:
+            cli.sync(
+                table="orders",
+                rules=rules_path,
+                rule_set="orders-v2",
+                dry_run=False,
+                since=None,
+                timestamp_col="created_at",
+            )
+    assert exc_info.value.exit_code == 1
+    assert "Exactly one of" in print_mock.call_args[0][0]
+
+
+def test_sync_rule_set_path_calls_run_sync_without_file_check() -> None:
+    with patch("dataguard.cli.run_sync", return_value=[]) as run_sync_mock:
+        cli.sync(
+            table="orders",
+            rules=None,
+            rule_set="orders-v2",
+            dry_run=True,
+            since=None,
+            timestamp_col="created_at",
+        )
+    run_sync_mock.assert_called_once_with(
+        table="orders",
+        rules_path=None,
+        rule_set_name="orders-v2",
+        dry_run=True,
+        since=None,
+        timestamp_col="created_at",
+    )
+
+
+# ---------------------------------------------------------------------------
+# rules subcommand group
+# ---------------------------------------------------------------------------
+
+
+def test_rules_list_prints_no_rule_sets_message_when_empty() -> None:
+    with patch("dataguard.cli.rule_sets.list_rule_sets", return_value=[]):
+        with patch("dataguard.cli.console.print") as print_mock:
+            cli.rules_list()
+    assert "No rule sets found" in print_mock.call_args[0][0]
+
+
+def test_rules_list_prints_table_when_populated() -> None:
+    rs = SimpleNamespace(name="orders-v2", table_name="orders", updated_at="x")
+    with patch("dataguard.cli.rule_sets.list_rule_sets", return_value=[rs]):
+        with patch("dataguard.cli.console.print") as print_mock:
+            cli.rules_list()
+    print_mock.assert_called_once()
+
+
+def test_rules_list_runtime_error_exits_nonzero() -> None:
+    with patch(
+        "dataguard.cli.rule_sets.list_rule_sets",
+        side_effect=RuntimeError("boom"),
+    ):
+        with patch("dataguard.cli.console.print"):
+            with pytest.raises(typer.Exit) as exc_info:
+                cli.rules_list()
+    assert exc_info.value.exit_code == 1
+
+
+def test_rules_get_not_found_exits_nonzero() -> None:
+    with patch(
+        "dataguard.cli.rule_sets.get_rule_set",
+        side_effect=RuntimeError("Rule set 'missing' not found"),
+    ):
+        with patch("dataguard.cli.console.print") as print_mock:
+            with pytest.raises(typer.Exit) as exc_info:
+                cli.rules_get("missing")
+    assert exc_info.value.exit_code == 1
+    assert "not found" in print_mock.call_args[0][0]
+
+
+def test_rules_create_missing_file_exits_nonzero(tmp_path: Path) -> None:
+    missing = tmp_path / "does-not-exist.json"
+    with patch("dataguard.cli.console.print") as print_mock:
+        with pytest.raises(typer.Exit) as exc_info:
+            cli.rules_create(name="orders-v2", table="orders", from_file=missing)
+    assert exc_info.value.exit_code == 1
+    assert "Rules file not found" in print_mock.call_args[0][0]
+
+
+def test_rules_create_success_calls_create_rule_set(tmp_path: Path) -> None:
+    rules_path = tmp_path / "rules.json"
+    rules_path.write_text('{"rules": [{"field": "id", "check": "required"}]}')
+    with patch("dataguard.cli.rule_sets.create_rule_set") as create_mock:
+        with patch("dataguard.cli.console.print"):
+            cli.rules_create(name="orders-v2", table="orders", from_file=rules_path)
+    create_mock.assert_called_once_with(
+        "orders-v2", "orders", [{"field": "id", "check": "required"}]
+    )
+
+
+def test_rules_create_name_conflict_exits_nonzero(tmp_path: Path) -> None:
+    rules_path = tmp_path / "rules.json"
+    rules_path.write_text('{"rules": []}')
+    with patch(
+        "dataguard.cli.rule_sets.create_rule_set",
+        side_effect=RuntimeError("Rule set 'orders-v2' already exists"),
+    ):
+        with patch("dataguard.cli.console.print") as print_mock:
+            with pytest.raises(typer.Exit) as exc_info:
+                cli.rules_create(name="orders-v2", table="orders", from_file=rules_path)
+    assert exc_info.value.exit_code == 1
+    assert "already exists" in print_mock.call_args[0][0]
+
+
+def test_rules_update_missing_file_exits_nonzero(tmp_path: Path) -> None:
+    missing = tmp_path / "does-not-exist.json"
+    with patch("dataguard.cli.console.print") as print_mock:
+        with pytest.raises(typer.Exit) as exc_info:
+            cli.rules_update(name="orders-v2", from_file=missing)
+    assert exc_info.value.exit_code == 1
+    assert "Rules file not found" in print_mock.call_args[0][0]
+
+
+def test_rules_update_success_calls_update_rule_set(tmp_path: Path) -> None:
+    rules_path = tmp_path / "rules.json"
+    rules_path.write_text('{"rules": [{"field": "id", "check": "required"}]}')
+    with patch("dataguard.cli.rule_sets.update_rule_set") as update_mock:
+        with patch("dataguard.cli.console.print"):
+            cli.rules_update(name="orders-v2", from_file=rules_path)
+    update_mock.assert_called_once_with(
+        "orders-v2", [{"field": "id", "check": "required"}]
+    )
+
+
+def test_rules_delete_confirms_before_deleting() -> None:
+    with patch("dataguard.cli.typer.confirm") as confirm_mock:
+        with patch("dataguard.cli.rule_sets.delete_rule_set") as delete_mock:
+            with patch("dataguard.cli.console.print"):
+                cli.rules_delete("orders-v2")
+    confirm_mock.assert_called_once_with("Delete rule set 'orders-v2'?", abort=True)
+    delete_mock.assert_called_once_with("orders-v2")
+
+
+def test_rules_delete_not_found_exits_nonzero() -> None:
+    with patch("dataguard.cli.typer.confirm"):
+        with patch(
+            "dataguard.cli.rule_sets.delete_rule_set",
+            side_effect=RuntimeError("Rule set 'missing' not found"),
+        ):
+            with patch("dataguard.cli.console.print") as print_mock:
+                with pytest.raises(typer.Exit) as exc_info:
+                    cli.rules_delete("missing")
+    assert exc_info.value.exit_code == 1
+    assert "not found" in print_mock.call_args[0][0]
