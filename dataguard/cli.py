@@ -3,14 +3,17 @@ from pathlib import Path
 from typing import Optional
 
 import typer
+from dotenv import load_dotenv
 from rich.console import Console
 from rich.table import Table
 
-from dataguard import auth, rule_sets
-from dataguard.env_check import env_check
-from dataguard.models import Outcome
-from dataguard.sync import _load_rules, run_sync
-from dataguard.watermark import check_since_override
+load_dotenv()
+
+from dataguard import auth, rule_sets  # noqa: E402
+from dataguard.env_check import env_check  # noqa: E402
+from dataguard.models import Outcome  # noqa: E402
+from dataguard.sync import _load_rules, run_sync  # noqa: E402
+from dataguard.watermark import check_since_override  # noqa: E402
 
 app = typer.Typer(no_args_is_help=True)
 rules_app = typer.Typer(no_args_is_help=True)
@@ -31,7 +34,7 @@ def _root(ctx: typer.Context) -> None:
         # logout must work even with a broken/revoked session or missing env —
         # it is the only escape hatch from an unusable auth state.
         return
-    env_check()
+    env_check(require_db=ctx.invoked_subcommand == "sync")
     try:
         auth.ensure_session()
     except auth.AuthError as exc:
