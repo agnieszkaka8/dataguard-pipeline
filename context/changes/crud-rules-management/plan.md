@@ -427,9 +427,9 @@ standalone.
 
 #### Automated
 
-- [x] 2.1 Unit tests pass: `uv run pytest tests/test_cli.py tests/test_sync.py -v`
-- [x] 2.2 Type checking passes: `uv run mypy dataguard/`
-- [x] 2.3 Linting passes: `uv run ruff check dataguard/`
+- [x] 2.1 Unit tests pass: `uv run pytest tests/test_cli.py tests/test_sync.py -v` — da8da7a
+- [x] 2.2 Type checking passes: `uv run mypy dataguard/` — da8da7a
+- [x] 2.3 Linting passes: `uv run ruff check dataguard/` — da8da7a
 
 #### Manual
 
@@ -443,9 +443,9 @@ standalone.
 
 #### Automated
 
-- [ ] 3.1 Full test suite passes: `uv run pytest -m "not integration"`
-- [ ] 3.2 Type checking passes: `uv run mypy dataguard/`
-- [ ] 3.3 Linting passes: `uv run ruff check dataguard/`
+- [x] 3.1 Full test suite passes: `uv run pytest -m "not integration"`
+- [x] 3.2 Type checking passes: `uv run mypy dataguard/`
+- [x] 3.3 Linting passes: `uv run ruff check dataguard/`
 
 #### Manual
 
